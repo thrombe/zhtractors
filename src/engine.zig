@@ -244,7 +244,8 @@ pub const Audio = struct {
 
 pub const Window = struct {
     // last known size
-    extent: vk.Extent2D = .{ .width = 800, .height = 600 },
+    extent: vk.Extent2D,
+    scale: struct { x: f32, y: f32 },
     handle: *c.GLFWwindow,
     resize_fuse: Fuse = .{},
     input_state: InputState = .{},
@@ -475,15 +476,21 @@ pub const Window = struct {
             _ = global_window.resize_fuse.fuse();
         }
 
+        fn window_content_scale(_: ?*c.GLFWwindow, scale_x: f32, scale_y: f32) callconv(.c) void {
+            global_window.scale.x = scale_x;
+            global_window.scale.y = scale_y;
+        }
+
         fn cursor_pos(_: ?*c.GLFWwindow, x: f64, y: f64) callconv(.C) void {
             const m = &global_window.input_state.mouse;
+            const s = global_window.scale;
 
             // NOTE: .tick() clears this to 0
-            m.dx += x - m.x;
-            m.dy += y - m.y;
+            m.dx += x - m.x * s.x;
+            m.dy += y - m.y * s.y;
 
-            m.x = x;
-            m.y = y;
+            m.x = x * s.x;
+            m.y = y * s.y;
         }
 
         fn mouse(_: ?*c.GLFWwindow, button: c_int, action: c_int, mods: c_int) callconv(.C) void {
@@ -621,7 +628,12 @@ pub const Window = struct {
         ) orelse return error.WindowInitFailed;
         errdefer c.glfwDestroyWindow(window);
 
+        var scale_x: f32 = undefined;
+        var scale_y: f32 = undefined;
+        c.glfwGetWindowContentScale(window, &scale_x, &scale_y);
+
         _ = c.glfwSetFramebufferSizeCallback(window, &Callbacks.resize);
+        _ = c.glfwSetWindowContentScaleCallback(window, &Callbacks.window_content_scale);
         _ = c.glfwSetMouseButtonCallback(window, &Callbacks.mouse);
         _ = c.glfwSetScrollCallback(window, &Callbacks.scroll);
         _ = c.glfwSetKeyCallback(window, &Callbacks.key);
@@ -629,7 +641,11 @@ pub const Window = struct {
 
         const self = try allocator.create(@This());
         errdefer allocator.destroy(self);
-        self.* = .{ .extent = extent, .handle = window };
+        self.* = .{
+            .extent = extent,
+            .scale = .{ .x = scale_x, .y = scale_y },
+            .handle = window,
+        };
         Callbacks.global_window = self;
         return self;
     }
@@ -638,6 +654,7 @@ pub const Window = struct {
         _ = c.glfwSetErrorCallback(null);
 
         _ = c.glfwSetFramebufferSizeCallback(self.handle, null);
+        _ = c.glfwSetWindowContentScaleCallback(self.handle, null);
         _ = c.glfwSetMouseButtonCallback(self.handle, null);
         _ = c.glfwSetScrollCallback(self.handle, null);
         _ = c.glfwSetKeyCallback(self.handle, null);
@@ -650,6 +667,7 @@ pub const Window = struct {
         _ = c.glfwSetErrorCallback(&Callbacks.err);
 
         _ = c.glfwSetFramebufferSizeCallback(self.handle, &Callbacks.resize);
+        _ = c.glfwSetWindowContentScaleCallback(self.handle, &Callbacks.window_content_scale);
         _ = c.glfwSetMouseButtonCallback(self.handle, &Callbacks.mouse);
         _ = c.glfwSetScrollCallback(self.handle, &Callbacks.scroll);
         _ = c.glfwSetKeyCallback(self.handle, &Callbacks.key);
@@ -657,10 +675,6 @@ pub const Window = struct {
     }
 
     pub fn tick(self: *@This()) void {
-        var w: c_int = undefined;
-        var h: c_int = undefined;
-        c.glfwGetFramebufferSize(self.handle, &w, &h);
-
         self.input_state.keys.tick();
         self.input_state.mouse.tick();
 
