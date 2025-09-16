@@ -482,17 +482,6 @@ pub const ResourceManager = struct {
         _pad1: u32 = 0,
         _pad2: u32 = 0,
     };
-    pub const ParticleForce = extern struct {
-        attraction_strength: f32,
-        attraction_radius: f32,
-        attraction_peak_dist_factor: f32,
-        collision_strength: f32,
-        collision_radius: f32,
-
-        _pad0: u32 = 0,
-        _pad1: u32 = 0,
-        _pad2: u32 = 0,
-    };
     pub const Particle = extern struct {
         pos: math.Vec3,
         vel: math.Vec3,
@@ -506,22 +495,20 @@ pub const ResourceManager = struct {
     };
     pub const DrawCall = vk.DrawIndexedIndirectCommand;
 
-    pub const PushConstants = extern struct {
+    pub const PushConstants = struct {
         reduce_step: i32 = 0,
         seed: i32,
 
-        _pad0: u32 = 0,
-        _pad1: u32 = 0,
-        // _pad2: u32 = 0,
+        pub const shader_type = ShaderUtils.shader_type(@This());
     };
 
-    pub const Uniforms = extern struct {
+    pub const Uniforms = struct {
         camera: utils_mod.ShaderUtils.Camera2D,
         frame: utils_mod.ShaderUtils.Frame,
         mouse: utils_mod.ShaderUtils.Mouse,
         params: Params,
 
-        const Params = extern struct {
+        const Params = struct {
             delta: f32 = 0,
             particle_visual_size: u32 = 16,
             grid_size: u32 = 32,
@@ -546,11 +533,9 @@ pub const ResourceManager = struct {
             world_size_x: i32,
             world_size_y: i32,
             world_size_z: i32,
-
-            // _pad0: u32 = 0,
-            // _pad1: u32 = 0,
-            // _pad2: u32 = 0,
         };
+
+        pub const shader_type = ShaderUtils.shader_type(@This());
 
         fn from(
             state: *AppState,
@@ -644,20 +629,12 @@ pub const RendererState = struct {
         bg: GraphicsPipeline,
         render: GraphicsPipeline,
         spawn_particles: ComputePipeline,
-        bin_reset: ComputePipeline,
-        particle_count: ComputePipeline,
-        bin_prefix_sum: ComputePipeline,
-        particle_binning: ComputePipeline,
         tick_particles: ComputePipeline,
 
         fn deinit(self: *@This(), device: *Device) void {
             self.bg.deinit(device);
             self.render.deinit(device);
             self.spawn_particles.deinit(device);
-            self.bin_reset.deinit(device);
-            self.particle_count.deinit(device);
-            self.bin_prefix_sum.deinit(device);
-            self.particle_binning.deinit(device);
             self.tick_particles.deinit(device);
         }
     };
@@ -718,34 +695,6 @@ pub const RendererState = struct {
             .path = "src/shader.glsl",
             .include = includes,
             .define = try alloc.dupe([]const u8, &[_][]const u8{ "SPAWN_PARTICLES_PASS", "COMPUTE_PASS" }),
-        });
-        try shader_stages.append(.{
-            .name = "bin_reset",
-            .stage = .compute,
-            .path = "src/shader.glsl",
-            .include = includes,
-            .define = try alloc.dupe([]const u8, &[_][]const u8{ "BIN_RESET_PASS", "COMPUTE_PASS" }),
-        });
-        try shader_stages.append(.{
-            .name = "particle_count",
-            .stage = .compute,
-            .path = "src/shader.glsl",
-            .include = includes,
-            .define = try alloc.dupe([]const u8, &[_][]const u8{ "PARTICLE_COUNT_PASS", "COMPUTE_PASS" }),
-        });
-        try shader_stages.append(.{
-            .name = "bin_prefix_sum",
-            .stage = .compute,
-            .path = "src/shader.glsl",
-            .include = includes,
-            .define = try alloc.dupe([]const u8, &[_][]const u8{ "BIN_PREFIX_SUM_PASS", "COMPUTE_PASS" }),
-        });
-        try shader_stages.append(.{
-            .name = "particle_binning",
-            .stage = .compute,
-            .path = "src/shader.glsl",
-            .include = includes,
-            .define = try alloc.dupe([]const u8, &[_][]const u8{ "PARTICLE_BINNING_PASS", "COMPUTE_PASS" }),
         });
         try shader_stages.append(.{
             .name = "tick_particles",
@@ -870,7 +819,7 @@ pub const RendererState = struct {
             .push_constant_ranges = &[_]vk.PushConstantRange{.{
                 .stage_flags = .{ .compute_bit = true },
                 .offset = 0,
-                .size = @sizeOf(ResourceManager.PushConstants),
+                .size = @sizeOf(ResourceManager.PushConstants.shader_type),
             }},
         });
 
@@ -899,7 +848,7 @@ pub const RendererState = struct {
             .push_constant_ranges = &[_]vk.PushConstantRange{.{
                 .stage_flags = .{ .compute_bit = true },
                 .offset = 0,
-                .size = @sizeOf(ResourceManager.PushConstants),
+                .size = @sizeOf(ResourceManager.PushConstants.shader_type),
             }},
         });
 
@@ -912,7 +861,7 @@ pub const RendererState = struct {
             .push_constant_ranges = &[_]vk.PushConstantRange{.{
                 .stage_flags = .{ .compute_bit = true },
                 .offset = 0,
-                .size = @sizeOf(ResourceManager.PushConstants),
+                .size = @sizeOf(ResourceManager.PushConstants.shader_type),
             }},
         });
 
@@ -925,7 +874,7 @@ pub const RendererState = struct {
             .push_constant_ranges = &[_]vk.PushConstantRange{.{
                 .stage_flags = .{ .compute_bit = true },
                 .offset = 0,
-                .size = @sizeOf(ResourceManager.PushConstants),
+                .size = @sizeOf(ResourceManager.PushConstants.shader_type),
             }},
         });
 
@@ -962,7 +911,7 @@ pub const RendererState = struct {
 
         // TODO: oof. don't use arena allocator. somehow retain this memory somewhere.
         {
-            const constants = try alloc.create(ResourceManager.PushConstants);
+            const constants = try alloc.create(ResourceManager.PushConstants.shader_type);
             constants.* = .{ .seed = app_state.rng.random().int(i32) };
             cmdbuf.push_constants(device, self.pipelines.spawn_particles.layout, std.mem.asBytes(constants), .{ .compute_bit = true });
         }
@@ -995,7 +944,7 @@ pub const RendererState = struct {
                 });
 
                 {
-                    const constants = try alloc.create(ResourceManager.PushConstants);
+                    const constants = try alloc.create(ResourceManager.PushConstants.shader_type);
                     constants.* = .{ .reduce_step = reduce_step, .seed = app_state.rng.random().int(i32) };
                     cmdbuf.push_constants(device, self.pipelines.bin_prefix_sum.layout, std.mem.asBytes(constants), .{ .compute_bit = true });
                 }
@@ -1018,7 +967,7 @@ pub const RendererState = struct {
                 .desc_set = self.descriptor_set.set,
             });
             {
-                const constants = try alloc.create(ResourceManager.PushConstants);
+                const constants = try alloc.create(ResourceManager.PushConstants.shader_type);
                 constants.* = .{ .seed = app_state.rng.random().int(i32) };
                 cmdbuf.push_constants(device, self.pipelines.particle_binning.layout, std.mem.asBytes(constants), .{ .compute_bit = true });
             }
@@ -1031,7 +980,7 @@ pub const RendererState = struct {
                 .desc_set = self.descriptor_set.set,
             });
             {
-                const constants = try alloc.create(ResourceManager.PushConstants);
+                const constants = try alloc.create(ResourceManager.PushConstants.shader_type);
                 constants.* = .{ .seed = app_state.rng.random().int(i32) };
                 cmdbuf.push_constants(device, self.pipelines.tick_particles.layout, std.mem.asBytes(constants), .{ .compute_bit = true });
             }
