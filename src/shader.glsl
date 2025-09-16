@@ -122,11 +122,18 @@ void set_seed(int id) {
         ivec3 world = ivec3(ubo.params.world_size_x, ubo.params.world_size_y, ubo.params.world_size_z);
 
         vec2 wres = vec2(ubo.frame.width, ubo.frame.height);
-        vec3 mouse = vec3(2.0 * vec2(float(ubo.mouse.x), float(ubo.mouse.y))/wres - 1.0, 0);
-        vec3 pforce = normalize(mouse - p.pos) * 100.0;
+        vec3 mouse = vec3(vec2(float(ubo.mouse.x), float(ubo.mouse.y)), 0);
+        mouse.xy -= ubo.camera.eye.xy;
+        // mouse.xy *= 2.0;
+        // mouse.xy /= wres;
+        // mouse.xy -= 1.0;
+        // mouse *= wres;
+
+        vec3 pforce = vec3(0.0);
         p.vel *= ubo.params.friction;
         p.vel += pforce * ubo.params.delta;
         p.pos += p.vel * ubo.params.delta;
+        // p.vel = normalize(mouse - p.pos) * 100.0;
 
         // position wrapping
         p.pos += world * vec3(lessThan(p.pos, vec3(0)));
@@ -138,6 +145,9 @@ void set_seed(int id) {
         p.age += 100.0 * ubo.params.delta;
         p.exposure += 100.0 * ubo.params.delta;
 
+        if (id == 0) {
+            p.pos = mouse;
+        }
         particles[id] = p;
     }
 #endif // TICK_PARTICLES_PASS
@@ -208,6 +218,12 @@ void set_seed(int id) {
         vec2 eye = ubo.camera.eye.xy;
         vec2 mres = vec2(ubo.frame.monitor_width, ubo.frame.monitor_height);
         vec2 wres = vec2(ubo.frame.width, ubo.frame.height);
+        vec2 mouse = vec2(float(ubo.mouse.x), float(ubo.mouse.y));
+        float bad = 0;
+
+        if (length(max(vec2(0.0), mouse - wres)) > 0) {
+            bad = 1;
+        }
 
         vec2 coord = gl_FragCoord.xy;
         coord -= wres / 2.0;
@@ -215,11 +231,17 @@ void set_seed(int id) {
         coord -= eye;
         coord /= grid_size;
 
+        mouse -= wres / 2.0;
+        mouse /= zoom;
+        mouse -= eye;
+        mouse /= grid_size;
+
         // TODO: do a starry shader instead of a grid
         vec2 rounded = vec2(floor(coord.x), floor(coord.y));
         float checker = mod(floor(rounded.x) + floor(rounded.y), 2.0);
 
         vec3 color = mix(vec3(0.01, 0.01, 0.01), vec3(0.05, 0.05, 0.05), checker);
+        // color = vec3(mouse - coord, 0.0);
 
         // debug renderr `particle_bins`
         // ivec2 pos = ivec2(int(coord.x), int(coord.y) + 3);
@@ -229,7 +251,7 @@ void set_seed(int id) {
         // }
 
         // set bad_flag to 1 for debugging
-        if (state.bad_flag > 0) {
+        if (state.bad_flag > 0 || bad == 1) {
             color = vec3(1, 0, 0);
         }
         

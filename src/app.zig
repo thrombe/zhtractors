@@ -1011,9 +1011,17 @@ pub const AppState = struct {
 
     fn tick_simulation(self: *@This(), engine: *Engine, app: *App) !void {
         _ = self;
-        _ = engine;
+        // _ = engine;
         app.telemetry.begin_sample(@src(), "app_state.tick_simulation");
         defer app.telemetry.end_sample();
+
+        std.log.debug("{any} {any}", .{
+            engine.window.extent,
+            .{
+                .x = cast(i32, engine.window.input().mouse.x),
+                .y = cast(i32, engine.window.input().mouse.y),
+            },
+        });
     }
 
     fn tick_local_input(self: *@This(), engine: *Engine, app: *App) !void {
