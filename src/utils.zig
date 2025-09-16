@@ -288,7 +288,6 @@ pub const SimulationTicker = struct {
     } = .{},
 
     simulation: struct {
-        steps_per_sec: u32 = 60,
         step_f: f32 = 1.0 / 60.0,
         step_ns: u64 = std.time.ns_per_s / 60,
 
@@ -326,12 +325,6 @@ pub const SimulationTicker = struct {
                 .timer = try std.time.Timer.start(),
             },
         };
-    }
-
-    pub fn set_steps_per_sec(self: *@This(), num: u32) void {
-        self.simulation.steps_per_sec = num;
-        self.simulation.step_f = 1.0 / @as(f32, @floatFromInt(num));
-        self.simulation.step_ns = std.time.ns_per_s / @as(u64, @intCast(num));
     }
 
     pub fn tick_real(self: *@This()) void {
@@ -1126,150 +1119,45 @@ pub const ImageMagick = struct {
     }
 };
 
-pub const CheaderGenerator = struct {
-    known_types: std.AutoHashMap(TypeId, void),
-    header: std.ArrayList(u8),
-
-    const Writer = std.ArrayList(u8).Writer;
-
-    pub fn init() !@This() {
-        var self = @This(){
-            .header = std.ArrayList(u8).init(allocator.*),
-            .known_types = std.AutoHashMap(TypeId, void).init(allocator.*),
-        };
-        errdefer self.deinit();
-
-        try self.header.appendSlice(
-            \\ // This file is generated from code. DO NOT EDIT.
-            \\
-            \\ #include <stdint.h>
-            \\
-        );
-
-        return self;
-    }
-
-    pub fn deinit(self: *@This()) void {
-        self.shader.deinit();
-        self.known_types.deinit();
-    }
-
-    pub fn dump_header(self: *@This(), _path: []const u8) !void {
-        const path = try fspath.cwd_join(allocator.*, _path);
-        defer allocator.free(path);
-        var file = try std.fs.createFileAbsolute(path, .{});
-        defer file.close();
-
-        try file.writeAll(self.shader.items);
-    }
-
-    fn zig_to_c_type(t: type) []const u8 {
-        return switch (t) {
-            i32 => "int32_t",
-            u32 => "uint32_t",
-            u16 => "uint16_t",
-            f32 => "float",
-            [*c]const u8 => "const char*",
-            else => switch (@typeInfo(t)) {
-                .array => |child| zig_to_c_type(child.child),
-                else => @compileError("cannot handle this type"),
-            },
-        };
-    }
-
-    fn fieldname(field: std.builtin.Type.StructField) []const u8 {
-        switch (@typeInfo(field.type)) {
-            .array => |child| {
-                const len = std.fmt.comptimePrint("{d}", .{child.len});
-                return field.name ++ "[" ++ len ++ "]";
-            },
-            else => return field.name,
-        }
-    }
-
-    fn remember(self: *@This(), t: type) !bool {
-        const id = TypeId.unique(t);
-        if (self.known_types.contains(id)) {
-            return true;
-        } else {
-            try self.known_types.put(id, {});
-            return false;
-        }
-    }
-
-    pub fn add_struct(self: *@This(), name: []const u8, t: type) !void {
-        if (try self.remember(t)) {
-            return;
-        }
-
-        const w = self.shader.writer();
-
-        switch (t) {
-            i32, u32, f32 => return,
-            else => switch (@typeInfo(t)) {
-                .array => return,
-                else => {
-                    const fields = @typeInfo(t).@"struct".fields;
-                    inline for (fields) |field| {
-                        try self.add_struct(zig_to_c_type(field.type), field.type);
-                    }
-
-                    try w.print(
-                        \\ typedef struct {{
-                        \\
-                    , .{});
-
-                    inline for (fields) |field| {
-                        try w.print(
-                            \\     {s} {s};
-                            \\
-                        , .{ zig_to_c_type(field.type), fieldname(field) });
-                    }
-
-                    try w.print(
-                        \\ }} {s};
-                        \\
-                        \\
-                    , .{name});
-                },
-            },
-        }
-    }
-};
-
 pub const ShaderUtils = struct {
     const Vec4 = math.Vec4;
     const Vec3 = math.Vec3;
     const Vec2 = math.Vec2;
     const Mat4x4 = math.Mat4x4;
 
-    pub const Mouse = extern struct { x: i32, y: i32, left: u32, right: u32 };
-    pub const Camera2D = extern struct {
+    const ShaderVec3 = extern struct {
+        x: f32,
+        y: f32,
+        z: f32,
+
+        pub fn from(v: Vec3) @This() {
+            return .{ .x = v.x, .y = v.y, .z = v.z };
+        }
+    };
+
+    pub const Mouse = struct { x: i32, y: i32, left: u32, right: u32 };
+    pub const Camera2D = struct {
         eye: Vec4, // vec2 aligned
         meta: CameraMeta = .{},
 
-        pub const CameraMeta = extern struct {
+        pub const CameraMeta = struct {
             did_move: u32 = 0,
-            _pad1: u32 = 0,
-            _pad2: u32 = 0,
-            _pad3: u32 = 0,
         };
     };
-    pub const Camera3D = extern struct {
+    pub const Camera3D = struct {
         eye: Vec3,
         fwd: Vec3,
         right: Vec3,
         up: Vec3,
         meta: CameraMeta = .{},
 
-        pub const CameraMeta = extern struct {
+        pub const CameraMeta = struct {
             did_change: u32 = 0,
             did_move: u32 = 0,
             did_rotate: u32 = 0,
-            pad: u32 = 0,
         };
     };
-    pub const Frame = extern struct {
+    pub const Frame = struct {
         frame: u32,
         time: f32,
         deltatime: f32,
@@ -1277,43 +1165,117 @@ pub const ShaderUtils = struct {
         height: i32,
         monitor_width: i32,
         monitor_height: i32,
-        pad0: u32 = 0,
     };
 
-    // TODO: maybe enforce this
     // - [Descriptor pool and sets - Vulkan Tutorial](https://vulkan-tutorial.com/Uniform_buffers/Descriptor_pool_and_sets)
     // scalars => N (= 4 bytes given 32 bit floats).
     // vec2 => 2N (= 8 bytes)
     // vec3 or vec4 => 4N (= 16 bytes)
     // nested structure => base alignment of its members rounded up to a multiple of 16.
     // mat4 => same alignment as vec4.
-    pub fn create_extern_type(comptime uniform: type) type {
-        const Type = std.builtin.Type;
-        const Ut: Type = @typeInfo(uniform);
-        const U = Ut.@"struct";
+    //
+    // apparently something immediately after a struct should also have a alignment of 16
+    // vec3 has an alignment of 16, but a vec3 followed by a u32 or something will take 16 bytes total
+    pub fn shader_type(comptime typ: type) type {
+        comptime {
+            switch (typ) {
+                Vec3 => return ShaderVec3,
+                Vec2, ShaderVec3, Vec4, Mat4x4 => return typ,
+                else => {},
+            }
 
-        return @Type(.{
-            .@"struct" = .{
-                .layout = .@"extern",
-                .fields = U.fields,
-                .decls = &[_]Type.Declaration{},
-                .is_tuple = false,
-            },
-        });
+            const Type = std.builtin.Type;
+            const Ut: Type = @typeInfo(typ);
+            switch (Ut) {
+                .float, .int => return typ,
+                .@"struct" => |U| {
+                    var fields: [U.fields.len]Type.StructField = undefined;
+                    var next_alignment: comptime_int = 0;
+                    for (U.fields, 0..) |field, i| {
+                        const field_type = shader_type(field.type);
+                        const field_type_alignment = shader_type_alignment(field_type);
+                        const alignment = @max(next_alignment, field_type_alignment);
+                        fields[i] = .{
+                            .name = field.name,
+                            .type = field_type,
+                            .default_value_ptr = null,
+                            .is_comptime = false,
+                            .alignment = alignment,
+                        };
+                        next_alignment = next_field_alignment(field_type);
+                    }
+
+                    return @Type(.{
+                        .@"struct" = .{
+                            .layout = .@"extern",
+                            .fields = &fields,
+                            .decls = &[_]Type.Declaration{},
+                            .is_tuple = false,
+                        },
+                    });
+                },
+                .array => |U| return @Type(.{
+                    .array = .{
+                        .len = U.len,
+                        .child = shader_type(U.child),
+                        .sentinel_ptr = U.sentinel_ptr,
+                    },
+                }),
+                .@"enum" => |U| return U.tag_type,
+                else => @compileError("type: '" ++ @typeName(typ) ++ "' not supported"),
+            }
+        }
     }
 
-    pub fn create_uniform_object(comptime uniform_type: type, uniform: anytype) create_extern_type(uniform_type) {
+    inline fn next_field_alignment(comptime typ: type) comptime_int {
+        switch (typ) {
+            ShaderVec3 => return 4,
+            else => {},
+        }
+        switch (@typeInfo(typ)) {
+            .@"struct" => return 16,
+            .array => |A| return next_field_alignment(A.child),
+            .@"enum" => |E| return next_field_alignment(E.tag_type),
+            else => return 0,
+        }
+    }
+
+    inline fn shader_type_alignment(comptime typ: type) comptime_int {
+        switch (typ) {
+            u8, i8 => return 1,
+            i32, u32, f32 => return 4,
+            Vec2 => return 8,
+            ShaderVec3, Vec4, Mat4x4 => return 16,
+            else => {
+                switch (@typeInfo(typ)) {
+                    .@"struct" => return 16,
+                    .array => |U| return shader_type_alignment(U.child),
+                    .@"enum" => |U| return shader_type_alignment(U.tag_type),
+                    else => @compileError("alignment of '" ++ @typeName(typ) ++ "' not supported"),
+                }
+            },
+        }
+    }
+
+    pub fn shader_object(comptime obj_typ: type, obj: anytype) shader_type(obj_typ) {
         const Type = std.builtin.Type;
-        const Ut: Type = @typeInfo(uniform_type);
-        const U = Ut.@"struct";
+        const Ut: Type = @typeInfo(obj_typ);
+        const S = shader_type(obj_typ);
 
-        var uniform_object: create_extern_type(uniform_type) = undefined;
-
-        inline for (U.fields) |field| {
-            @field(uniform_object, field.name) = @field(uniform, field.name);
+        var shader_obj: S = undefined;
+        inline for (Ut.@"struct".fields) |field| {
+            const O = @TypeOf(@field(shader_obj, field.name));
+            const T = @TypeOf(@field(obj, field.name));
+            if (comptime std.meta.eql(O, T)) {
+                @field(shader_obj, field.name) = @field(obj, field.name);
+            } else if (comptime @typeInfo(T) == .@"enum") {
+                @field(shader_obj, field.name) = @intFromEnum(@field(obj, field.name));
+            } else {
+                @field(shader_obj, field.name) = shader_object(O, @field(obj, field.name));
+            }
         }
 
-        return uniform_object;
+        return shader_obj;
     }
 
     pub const GlslBindingGenerator = struct {
@@ -1347,6 +1309,7 @@ pub const ShaderUtils = struct {
             return switch (t) {
                 Vec2 => "vec2",
                 Vec3 => "vec3",
+                ShaderVec3 => "vec3",
                 Vec4 => "vec4",
                 Mat4x4 => "mat4",
                 i32 => "int",
@@ -1367,7 +1330,8 @@ pub const ShaderUtils = struct {
                             return name[last + 1 ..];
                         }
                     },
-                    else => @compileError("cannot handle this type"),
+                    .@"enum" => return zig_to_glsl_type(shader_type(t)),
+                    else => @compileError("cannot handle this type: " ++ @typeName(t)),
                 },
             };
         }
@@ -1406,7 +1370,13 @@ pub const ShaderUtils = struct {
                     else => {
                         const fields = @typeInfo(t).@"struct".fields;
                         inline for (fields) |field| {
-                            try self.add_struct(comptime zig_to_glsl_type(field.type), field.type);
+                            switch (comptime @typeInfo(field.type)) {
+                                .array, .int, .float, .@"struct" => {
+                                    try self.add_struct(comptime zig_to_glsl_type(field.type), field.type);
+                                },
+                                .@"enum" => {},
+                                else => @compileError("type not supported: " ++ @typeName(field.type)),
+                            }
                         }
 
                         try w.print(
