@@ -58,6 +58,31 @@ void set_seed(int id) {
     seed = int(ubo.frame.frame) ^ id ^ floatBitsToInt(ubo.frame.time) ^ push.seed;
 }
 
+// vec3 attractor(vec3 pos) {
+//     float a = 0.16;
+//     float x = pos.x, y = pos.y, z = pos.z;
+//     float dt = 0.015;
+ 
+//     float dx, dy, dz;
+//     dx = (-a*x + sin(y)) * dt;
+//     dy = (-a*y + sin(z)) * dt;
+//     dz = (-a*z + sin(x)) * dt;
+//     return vec3(dx, dy, dz);
+// }
+
+vec3 attractor(vec3 p) {
+    float dt    = 0.0001;    // Time step
+    float sigma = 10.0;
+    float rho   = 28.0;
+    float beta  = 8.0 / 3.0;
+
+    float dx = sigma * (p.y - p.x);
+    float dy = p.x * (rho - p.z) - p.y;
+    float dz = p.x * p.y - beta * p.z;
+
+    return vec3(dx, dy, dz) * dt;
+}
+
 #ifdef SPAWN_PARTICLES_PASS
     layout (local_size_x = 8, local_size_y = 8) in;
     void main() {
@@ -116,38 +141,41 @@ void set_seed(int id) {
             }
         }
 
-        ivec3 bpos = ivec3(p.pos / ubo.params.bin_size);
-        ivec3 bworld = ivec3(ubo.params.bin_buf_size_x, ubo.params.bin_buf_size_y, ubo.params.bin_buf_size_z);
+        // ivec3 bpos = ivec3(p.pos / ubo.params.bin_size);
+        // ivec3 bworld = ivec3(ubo.params.bin_buf_size_x, ubo.params.bin_buf_size_y, ubo.params.bin_buf_size_z);
 
-        ivec3 world = ivec3(ubo.params.world_size_x, ubo.params.world_size_y, ubo.params.world_size_z);
+        // ivec3 world = ivec3(ubo.params.world_size_x, ubo.params.world_size_y, ubo.params.world_size_z);
 
-        vec2 wres = vec2(ubo.frame.width, ubo.frame.height);
-        vec3 mouse = vec3(vec2(float(ubo.mouse.x), float(ubo.mouse.y)), 0);
-        mouse.xy -= ubo.camera.eye.xy;
-        // mouse.xy *= 2.0;
-        // mouse.xy /= wres;
-        // mouse.xy -= 1.0;
-        // mouse *= wres;
+        // vec2 wres = vec2(ubo.frame.width, ubo.frame.height);
+        // vec3 mouse = vec3(vec2(float(ubo.mouse.x), float(ubo.mouse.y)), 0);
+        // // mouse.xy -= wres / 2.0;
+        // mouse.xy /= ubo.params.zoom;
+        // mouse.xy -= ubo.camera.eye.xy * wres / world.xy;
+        // // mouse.xy /= ubo.params.grid_size;
+        // // mouse.xy /= wres;
+        // // mouse.xy *= world.xy;
 
-        vec3 pforce = vec3(0.0);
-        p.vel *= ubo.params.friction;
-        p.vel += pforce * ubo.params.delta;
-        p.pos += p.vel * ubo.params.delta;
+        // vec3 pforce = normalize(vec3(mouse - p.pos)) * 100.0;
+        // p.vel *= ubo.params.friction;
+        // p.vel += pforce * ubo.params.delta;
+        // p.pos += p.vel * ubo.params.delta;
         // p.vel = normalize(mouse - p.pos) * 100.0;
 
-        // position wrapping
-        p.pos += world * vec3(lessThan(p.pos, vec3(0)));
-        p.pos -= world * vec3(greaterThanEqual(p.pos, world));
+        // // position wrapping
+        // p.pos += world * vec3(lessThan(p.pos, vec3(0)));
+        // p.pos -= world * vec3(greaterThanEqual(p.pos, world));
 
-        // prevents position blow up
-        p.pos = clamp(p.pos, vec3(0.0), world);
+        // // prevents position blow up
+        // p.pos = clamp(p.pos, vec3(0.0), world);
 
-        p.age += 100.0 * ubo.params.delta;
-        p.exposure += 100.0 * ubo.params.delta;
+        // p.age += 100.0 * ubo.params.delta;
+        // p.exposure += 100.0 * ubo.params.delta;
 
-        if (id == 0) {
-            p.pos = mouse;
-        }
+        // if (id != 0) {
+        //     p.pos = mouse;
+        // }
+
+        p.pos += attractor(p.pos);
         particles[id] = p;
     }
 #endif // TICK_PARTICLES_PASS

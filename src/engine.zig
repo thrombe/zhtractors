@@ -486,8 +486,8 @@ pub const Window = struct {
             const s = global_window.scale;
 
             // NOTE: .tick() clears this to 0
-            m.dx += x - m.x * s.x;
-            m.dy += y - m.y * s.y;
+            m.dx += x * s.x - m.x;
+            m.dy += y * s.y - m.y;
 
             m.x = x * s.x;
             m.y = y * s.y;
