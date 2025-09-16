@@ -280,7 +280,7 @@ pub const ResourceManager = struct {
     particles_draw_call_buf: Buffer,
 
     pub fn init(engine: *Engine, pool: vk.CommandPool, v: struct {
-        num_particles: u32 = 100000,
+        num_particles: u32 = 1000000,
         particle_type_count: u32 = 10,
     }) !@This() {
         const ctx = &engine.graphics;
@@ -899,7 +899,7 @@ pub const AppState = struct {
         particle_attrs: bool = false,
     } = .{},
     steps_per_frame: u32 = 2,
-    max_particle_count: u32 = 100000,
+    max_particle_count: u32 = 1000000,
     max_particle_type_count: u32 = 10,
     particle_type_count: u32 = 5,
     spawn_count: u32 = 15000,
