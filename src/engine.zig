@@ -704,19 +704,22 @@ pub const Window = struct {
         c.glfwSetInputMode(self.handle, c.GLFW_CURSOR, if (hide) c.GLFW_CURSOR_DISABLED else c.GLFW_CURSOR_NORMAL);
     }
 
-    pub fn get_res(self: *@This()) !struct { width: u32, height: u32 } {
+    pub fn get_max_res(self: *@This()) !struct { width: u32, height: u32 } {
+        _ = self;
+        var width: u32 = 0;
+        var height: u32 = 0;
+
         var count: i32 = undefined;
         const monitors = c.glfwGetMonitors(&count);
         for (monitors[0..@intCast(count)]) |monitor| {
-            std.log.debug("monitor: {any}", .{c.glfwGetVideoMode(monitor).?.*});
+            const videomode = c.glfwGetVideoMode(monitor).?.*;
+            width = @max(width, utils_mod.cast(u32, videomode.width));
+            height = @max(height, utils_mod.cast(u32, videomode.height));
         }
-        std.log.debug("window monitor: {any}", .{c.glfwGetWindowMonitor(self.handle)});
 
-        const monitor = c.glfwGetWindowMonitor(self.handle) orelse c.glfwGetPrimaryMonitor() orelse return error.CouldNotGetMonitor;
-        const mode = c.glfwGetVideoMode(monitor);
         return .{
-            .width = @intCast(mode.*.width),
-            .height = @intCast(mode.*.height),
+            .width = width,
+            .height = height,
         };
     }
 

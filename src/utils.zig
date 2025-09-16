@@ -1163,8 +1163,6 @@ pub const ShaderUtils = struct {
         deltatime: f32,
         width: i32,
         height: i32,
-        monitor_width: i32,
-        monitor_height: i32,
     };
 
     // - [Descriptor pool and sets - Vulkan Tutorial](https://vulkan-tutorial.com/Uniform_buffers/Descriptor_pool_and_sets)

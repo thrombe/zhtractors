@@ -68,8 +68,6 @@
      float deltatime;
      int width;
      int height;
-     int monitor_width;
-     int monitor_height;
  };
 
  struct Mouse {

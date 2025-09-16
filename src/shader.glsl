@@ -133,7 +133,6 @@ dz = (-a*x -b*y -z + (d * (pow(x, 3.0)))) * dt;
             return;
         }
 
-        vec2 mres = vec2(ubo.frame.monitor_width, ubo.frame.monitor_height);
         int index = atomicAdd(state.particle_count, 1);
         Particle p;
         p.pos = vec3(random(), random(), random()) * vec3(float(ubo.params.world_size_x), float(ubo.params.world_size_y), float(ubo.params.world_size_z));
@@ -229,7 +228,6 @@ dz = (-a*x -b*y -z + (d * (pow(x, 3.0)))) * dt;
 
         float zoom = ubo.params.zoom;
         float particle_size = t.particle_scale * ubo.params.particle_visual_size;
-        vec2 mres = vec2(ubo.frame.monitor_width, ubo.frame.monitor_height);
         vec2 wres = vec2(ubo.frame.width, ubo.frame.height);
 
         z_factor = abs(p.pos.z - ubo.params.world_size_z * 0.5) / max(ubo.params.world_size_z * 0.5, 1);
@@ -241,8 +239,7 @@ dz = (-a*x -b*y -z + (d * (pow(x, 3.0)))) * dt;
 
         vec2 pos = p.pos.xy + ubo.camera.eye.xy - vec2(float(ubo.params.world_size_x), float(ubo.params.world_size_y)) * 0.5;
         pos += vpos * 0.5 * particle_size * z_shrink;
-        pos /= mres; // world space to 0..1
-        pos *= mres/wres; // 0..1 scaled wrt window size
+        pos /= wres;
         pos *= zoom;
         pos *= 2.0;
         gl_Position = vec4(pos, 0.0, 1.0);
@@ -283,7 +280,6 @@ dz = (-a*x -b*y -z + (d * (pow(x, 3.0)))) * dt;
         float grid_size = ubo.params.grid_size;
         float zoom = ubo.params.zoom;
         vec2 eye = ubo.camera.eye.xy;
-        vec2 mres = vec2(ubo.frame.monitor_width, ubo.frame.monitor_height);
         vec2 wres = vec2(ubo.frame.width, ubo.frame.height);
 
         vec2 coord = gl_FragCoord.xy;

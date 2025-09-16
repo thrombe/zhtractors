@@ -50,7 +50,7 @@ pub fn init(engine: *Engine) !@This() {
     var ctx = &engine.graphics;
     const device = &ctx.device;
 
-    const res = try engine.window.get_res();
+    const res = try engine.window.get_max_res();
 
     var telemetry = try utils_mod.Tracy.init();
     errdefer telemetry.deinit();
@@ -526,8 +526,6 @@ pub const ResourceManager = struct {
                     .deltatime = state.ticker.scaled.delta,
                     .width = @intCast(window.extent.width),
                     .height = @intCast(window.extent.height),
-                    .monitor_width = @intCast(state.monitor_rez.width),
-                    .monitor_height = @intCast(state.monitor_rez.height),
                 },
                 .params = state.params,
             };
@@ -882,7 +880,6 @@ const ShaderStageManager = struct {
 pub const AppState = struct {
     ticker: utils_mod.SimulationTicker,
 
-    monitor_rez: struct { width: u32, height: u32 },
     mouse: extern struct { x: i32 = 0, y: i32 = 0, left: bool = false, right: bool = false } = .{},
 
     frame: u32 = 0,
@@ -933,11 +930,9 @@ pub const AppState = struct {
 
     pub fn init(window: *engine_mod.Window, app: *App) !@This() {
         const mouse = window.poll_mouse();
-        const sze = try window.get_res();
 
         var this = @This(){
             .ticker = try .init(),
-            .monitor_rez = .{ .width = sze.width, .height = sze.height },
             .mouse = .{ .x = mouse.x, .y = mouse.y, .left = mouse.left },
             .rng = std.Random.DefaultPrng.init(@intCast(std.time.timestamp())),
             .arena = std.heap.ArenaAllocator.init(allocator.*),
@@ -1024,13 +1019,6 @@ pub const AppState = struct {
 
         const window = engine.window;
 
-        const res = try window.get_res();
-        std.log.debug("monitor rez: {any} {any} {any} {any}", .{
-            res,
-            window.extent,
-            cast(u32, window.input_state.mouse.x),
-            cast(u32, window.input_state.mouse.y),
-        });
         var input = window.input();
 
         // local input tick
@@ -1088,8 +1076,6 @@ pub const AppState = struct {
                 mouse.dx = 0;
                 mouse.dy = 0;
             }
-            self.monitor_rez.width = res.width;
-            self.monitor_rez.height = res.height;
         }
 
         {
