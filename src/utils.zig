@@ -1135,7 +1135,7 @@ pub const ShaderUtils = struct {
         }
     };
 
-    pub const Mouse = struct { x: i32, y: i32, left: u32, right: u32 };
+    pub const Mouse = struct { x: i32, y: i32, left: u32, right: u32, middle: u32 };
     pub const Camera2D = struct {
         eye: Vec4, // vec2 aligned
         meta: CameraMeta = .{},

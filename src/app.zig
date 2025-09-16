@@ -519,6 +519,7 @@ pub const ResourceManager = struct {
                     .y = state.mouse.y,
                     .left = @intCast(@intFromBool(state.mouse.left)),
                     .right = @intCast(@intFromBool(state.mouse.right)),
+                    .middle = @intCast(@intFromBool(state.mouse.middle)),
                 },
                 .frame = .{
                     .frame = state.frame,
@@ -880,7 +881,7 @@ const ShaderStageManager = struct {
 pub const AppState = struct {
     ticker: utils_mod.SimulationTicker,
 
-    mouse: extern struct { x: i32 = 0, y: i32 = 0, left: bool = false, right: bool = false } = .{},
+    mouse: struct { x: i32 = 0, y: i32 = 0, left: bool = false, right: bool = false, middle: bool = false } = .{},
 
     frame: u32 = 0,
     fps_cap: u32 = 60,
@@ -1067,12 +1068,14 @@ pub const AppState = struct {
             }
 
             self.mouse.left = mouse.left.pressed();
+            self.mouse.right = mouse.right.pressed();
+            self.mouse.middle = mouse.middle.pressed();
             self.mouse.x = @intFromFloat(mouse.x);
             self.mouse.y = @intFromFloat(mouse.y);
 
             self.frame += 1;
 
-            if (!mouse.left.pressed()) {
+            if (!mouse.middle.pressed()) {
                 mouse.dx = 0;
                 mouse.dy = 0;
             }

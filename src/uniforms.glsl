@@ -75,6 +75,7 @@
      int y;
      uint left;
      uint right;
+     uint middle;
  };
 
  struct Uniforms {

@@ -66,9 +66,10 @@ vec3 attractor(vec3 pos) {
     float dx, dy, dz;
 
     // a = 0.00 + ubo.frame.time * 0.0009;
-    // dx = (-a*x + sin(y)) * dt;
-    // dy = (-a*y + sin(z)) * dt;
-    // dz = (-a*z + sin(x)) * dt;
+    a = 0.16;
+    dx = (-a*x + sin(y)) * dt;
+    dy = (-a*y + sin(z)) * dt;
+    dz = (-a*z + sin(x)) * dt;
 
 //     a = 0.80, b = 0.7, c = 0.6;
 // d = 3.5, e = 0.1;
@@ -78,23 +79,20 @@ vec3 attractor(vec3 pos) {
 
 // a = 40.0, b = 1.833, c = 0.16;
 // d = 0.65, e = 55.0, f = 20.0;
-
 // dx = (a*(y-x) + c*x*z) * dt;
 // dy = (e*x + f*y - x*z) * dt;
 // dz = (b*z + x*y - d*x*x) * dt;
 
 // a = 3.0, b = 2.7, c = 1.7;
 // d = 2.0, e = 9.0;
-
 // dx = (y- a*x +b*y*z) * dt;
 // dy = (c*y -x*z +z) * dt;
 // dz = (d*x*y - e*z) * dt;
 
-a = -5.5, b = 3.5, d = -1.0;
-
-dx = y * dt;
-dy = z * dt;
-dz = (-a*x -b*y -z + (d * (pow(x, 3.0)))) * dt;
+// a = -5.5, b = 3.5, d = -1.0;
+// dx = y * dt;
+// dy = z * dt;
+// dz = (-a*x -b*y -z + (d * (pow(x, 3.0)))) * dt;
 
     return vec3(dx, dy, dz);
 }
@@ -178,38 +176,51 @@ dz = (-a*x -b*y -z + (d * (pow(x, 3.0)))) * dt;
         vec3 mouse = vec3(vec2(float(ubo.mouse.x), float(ubo.mouse.y)), 0);
         mouse.xy -= wres / 2.0;
         mouse.xy /= ubo.params.zoom;
-        mouse.xy += wres / 2.0;
+        // mouse.xy += wres / 2.0;
         mouse.xy -= ubo.camera.eye.xy;
+        mouse.xy += vec2(float(ubo.params.world_size_x), float(ubo.params.world_size_y)) * 0.5;
         // mouse.xy *= ubo.params.zoom;
         // mouse.xy /= ubo.params.grid_size;
         // // mouse.xy /= wres;
         // mouse.xy *= world.xy;
 
-        p.pos = mouse + vec3(vec2(ubo.params.bin_size), 0.0) * 0.0 - 0.0*vec3(vec2(-60, 390), 0.0);
+        // p.pos = mouse;
         // p.pos = ubo.camera.eye.xyz / ubo.params.grid_size + vec3(wres.xy/2.0, 0.0);
 
-        // vec3 pforce = normalize(vec3(mouse - p.pos)) * 100.0;
-        // p.vel *= ubo.params.friction;
-        // p.vel += pforce * ubo.params.delta;
-        // p.pos += p.vel * ubo.params.delta;
+        vec3 diff = mouse - p.pos;
+        diff /= 1000.0;
+        vec3 sign = vec3(1.0);
+        vec3 offset = vec3(random(), random(), random());
+        if (dot(diff, diff) < 0.01 * random()) {
+            sign *= -1.0;
+        }
+        vec3 pforce = 100.0 * normalize(diff)/max(dot(diff, diff), 0.1);
+        p.vel *= ubo.params.friction;
+        if (ubo.mouse.left == 1) {
+            p.vel += sign * offset * pforce * ubo.params.delta;
+        }
+        if (ubo.mouse.right == 1) {
+            p.vel -= offset * pforce * ubo.params.delta;
+        }
+        p.pos += p.vel * ubo.params.delta;
         // p.vel = normalize(mouse - p.pos) * 100.0;
 
-        // // position wrapping
+        // position wrapping
         // p.pos += world * vec3(lessThan(p.pos, vec3(0)));
         // p.pos -= world * vec3(greaterThanEqual(p.pos, world));
 
-        // // prevents position blow up
+        // prevents position blow up
         // p.pos = clamp(p.pos, vec3(0.0), world);
 
-        // p.age += 100.0 * ubo.params.delta;
-        // p.exposure += 100.0 * ubo.params.delta;
+        p.age += 100.0 * ubo.params.delta;
+        p.exposure += 100.0 * ubo.params.delta;
 
         // if (id != 0) {
         //     p.pos = mouse;
         // }
 
-        // f32 scale = 100.0;
-        // p.pos += attractor(p.pos/scale) *scale;
+        f32 scale = 100.0;
+        p.pos += attractor(p.pos/scale) * scale;
         particles[id] = p;
     }
 #endif // TICK_PARTICLES_PASS
