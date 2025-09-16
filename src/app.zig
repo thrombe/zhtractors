@@ -272,15 +272,10 @@ pub const ResourceManager = struct {
     uniform_buf: Buffer,
 
     particle_types: []ParticleType,
-    particle_force_matrix: []ParticleForce,
 
     scratch_buf: Buffer,
     particle_types_buf: Buffer,
-    particle_force_matrix_buf: Buffer,
-    particles_back_buf: Buffer,
     particles_buf: Buffer,
-    particle_bins_back_buf: Buffer,
-    particle_bins_buf: Buffer,
     // updated from gpu side
     particles_draw_call_buf: Buffer,
 
@@ -311,48 +306,17 @@ pub const ResourceManager = struct {
         errdefer allocator.free(particle_types);
         @memset(particle_types, std.mem.zeroes(ParticleType));
 
-        const particle_force_matrix = try allocator.alloc(ParticleForce, v.particle_type_count * v.particle_type_count);
-        errdefer allocator.free(particle_force_matrix);
-        @memset(particle_force_matrix, std.mem.zeroes(ParticleForce));
-
         var particle_types_buf = try Buffer.new_from_slice(ctx, .{
             .usage = .{ .storage_buffer_bit = true },
             .memory_type = .{ .device_local_bit = true, .host_visible_bit = true, .host_coherent_bit = true },
         }, particle_types, pool);
         errdefer particle_types_buf.deinit(device);
 
-        var particle_force_matrix_buf = try Buffer.new_from_slice(ctx, .{
-            .usage = .{ .storage_buffer_bit = true },
-            .memory_type = .{ .device_local_bit = true, .host_visible_bit = true, .host_coherent_bit = true },
-        }, particle_force_matrix, pool);
-        errdefer particle_force_matrix_buf.deinit(device);
-
-        var particles_back = try Buffer.new(ctx, .{
-            .size = @sizeOf(Particle) * v.num_particles,
-            .usage = .{ .storage_buffer_bit = true },
-        });
-        errdefer particles_back.deinit(device);
-
         var particles = try Buffer.new(ctx, .{
             .size = @sizeOf(Particle) * v.num_particles,
             .usage = .{ .storage_buffer_bit = true },
         });
         errdefer particles.deinit(device);
-
-        // TODO: better bin buffer sizes
-        const res = .{ .width = @as(u32, 1000), .height = @as(u32, 1000) };
-        // 1 larger than the max number of bins
-        var particle_bins_back = try Buffer.new(ctx, .{
-            .size = @sizeOf(i32) * (1 + res.width * res.height) * 5,
-            .usage = .{ .storage_buffer_bit = true },
-        });
-        errdefer particle_bins_back.deinit(device);
-
-        var particle_bins = try Buffer.new(ctx, .{
-            .size = @sizeOf(i32) * (1 + res.width * res.height) * 5,
-            .usage = .{ .storage_buffer_bit = true },
-        });
-        errdefer particle_bins.deinit(device);
 
         var scratch = try Buffer.new(ctx, .{
             .size = 4 * 4 * 100,
@@ -372,13 +336,8 @@ pub const ResourceManager = struct {
             .particles_draw_call_buf = draw_call,
             .scratch_buf = scratch,
             .particle_types = particle_types,
-            .particle_force_matrix = particle_force_matrix,
             .particle_types_buf = particle_types_buf,
-            .particle_force_matrix_buf = particle_force_matrix_buf,
-            .particles_back_buf = particles_back,
             .particles_buf = particles,
-            .particle_bins_back_buf = particle_bins_back,
-            .particle_bins_buf = particle_bins,
         };
     }
 
@@ -388,15 +347,10 @@ pub const ResourceManager = struct {
         self.scratch_buf.deinit(device);
         allocator.free(self.particle_types);
         self.particle_types_buf.deinit(device);
-        allocator.free(self.particle_force_matrix);
-        self.particle_force_matrix_buf.deinit(device);
-        self.particles_back_buf.deinit(device);
         self.particles_buf.deinit(device);
-        self.particle_bins_back_buf.deinit(device);
-        self.particle_bins_buf.deinit(device);
     }
 
-    pub fn add_binds(self: *@This(), builder: *render_utils.DescriptorSet.Builder, builder_back: *render_utils.DescriptorSet.Builder) !void {
+    pub fn add_binds(self: *@This(), builder: *render_utils.DescriptorSet.Builder) !void {
         const add_to_set = struct {
             fn func(set_builder: @TypeOf(builder), buf: *Buffer, bind: UniformBinds) !void {
                 try set_builder.add(buf, bind.bind());
@@ -407,27 +361,12 @@ pub const ResourceManager = struct {
         try add_to_set(builder, &self.particles_draw_call_buf, .particles_draw_call);
         try add_to_set(builder, &self.scratch_buf, .scratch);
         try add_to_set(builder, &self.particle_types_buf, .particle_types);
-        try add_to_set(builder, &self.particle_force_matrix_buf, .particle_force_matrix);
-        try add_to_set(builder, &self.particles_back_buf, .particles_back);
         try add_to_set(builder, &self.particles_buf, .particles);
-        try add_to_set(builder, &self.particle_bins_back_buf, .particle_bins_back);
-        try add_to_set(builder, &self.particle_bins_buf, .particle_bins);
-
-        try add_to_set(builder_back, &self.uniform_buf, .camera);
-        try add_to_set(builder_back, &self.particles_draw_call_buf, .particles_draw_call);
-        try add_to_set(builder_back, &self.scratch_buf, .scratch);
-        try add_to_set(builder_back, &self.particle_types_buf, .particle_types);
-        try add_to_set(builder_back, &self.particle_force_matrix_buf, .particle_force_matrix);
-        try add_to_set(builder_back, &self.particles_back_buf, .particles_back);
-        try add_to_set(builder_back, &self.particles_buf, .particles);
-        try add_to_set(builder_back, &self.particle_bins_buf, .particle_bins_back);
-        try add_to_set(builder_back, &self.particle_bins_back_buf, .particle_bins);
     }
 
     pub fn upload(self: *@This(), device: *Device) !void {
         try self.update_uniforms(device);
         try self.update_particle_types(device);
-        try self.update_force_matrix(device);
     }
 
     fn update_uniforms(self: *@This(), device: *Device) !void {
@@ -445,18 +384,10 @@ pub const ResourceManager = struct {
         defer device.unmapMemory(self.particle_types_buf.memory);
 
         const buf = self.particle_types;
-        const mem: [*c]ParticleType = @ptrCast(@alignCast(mapped));
-        @memcpy(mem[0..buf.len], buf);
-    }
-
-    fn update_force_matrix(self: *@This(), device: *Device) !void {
-        const maybe_mapped = try device.mapMemory(self.particle_force_matrix_buf.memory, 0, vk.WHOLE_SIZE, .{});
-        const mapped = maybe_mapped orelse return error.MappingMemoryFailed;
-        defer device.unmapMemory(self.particle_force_matrix_buf.memory);
-
-        const buf = self.particle_force_matrix;
-        const mem: [*c]ParticleForce = @ptrCast(@alignCast(mapped));
-        @memcpy(mem[0..buf.len], buf);
+        const mem: [*c]ParticleType.shader_type = @ptrCast(@alignCast(mapped));
+        for (mem[0..buf.len], buf) |*typ, obj| {
+            typ.* = ShaderUtils.shader_object(ParticleType, obj);
+        }
     }
 
     pub const UniformBinds = enum(u32) {
@@ -464,39 +395,30 @@ pub const ResourceManager = struct {
         particles_draw_call,
         scratch,
         particle_types,
-        particle_force_matrix,
-        particles_back,
         particles,
-        particle_bins_back,
-        particle_bins,
 
         pub fn bind(self: @This()) u32 {
             return @intFromEnum(self);
         }
     };
-    pub const ParticleType = extern struct {
+    pub const ParticleType = struct {
         color: Vec4,
         particle_scale: f32,
 
-        _pad0: u32 = 0,
-        _pad1: u32 = 0,
-        _pad2: u32 = 0,
+        pub const shader_type = ShaderUtils.shader_type(@This());
     };
-    pub const Particle = extern struct {
+    pub const Particle = struct {
         pos: math.Vec3,
         vel: math.Vec3,
         type_index: u32,
         age: f32,
         exposure: f32,
 
-        _pad0: u32 = 0,
-        // _pad1: u32 = 0,
-        // _pad2: u32 = 0,
+        pub const shader_type = ShaderUtils.shader_type(@This());
     };
     pub const DrawCall = vk.DrawIndexedIndirectCommand;
 
     pub const PushConstants = struct {
-        reduce_step: i32 = 0,
         seed: i32,
 
         pub const shader_type = ShaderUtils.shader_type(@This());
@@ -617,7 +539,6 @@ pub const RendererState = struct {
     swapchain: Swapchain,
     cmdbuffer: CmdBuffer,
     descriptor_set: DescriptorSet,
-    descriptor_set_back: DescriptorSet,
 
     stages: ShaderStageManager,
     pipelines: Pipelines,
@@ -651,7 +572,6 @@ pub const RendererState = struct {
         defer gen.deinit();
         try gen.add_struct("DrawCall", ResourceManager.DrawCall);
         try gen.add_struct("ParticleType", ResourceManager.ParticleType);
-        try gen.add_struct("ParticleForce", ResourceManager.ParticleForce);
         try gen.add_struct("Particle", ResourceManager.Particle);
         try gen.add_struct("Params", ResourceManager.Uniforms.Params);
         try gen.add_struct("PushConstants", ResourceManager.PushConstants);
@@ -716,7 +636,6 @@ pub const RendererState = struct {
             .stages = stages,
             .pipelines = undefined,
             .descriptor_set = undefined,
-            .descriptor_set_back = undefined,
             .swapchain = swapchain,
             .pool = app.command_pool,
             .cmdbuffer = undefined,
@@ -724,7 +643,6 @@ pub const RendererState = struct {
 
         try self.create_pipelines(engine, app, false);
         errdefer self.descriptor_set.deinit(device);
-        errdefer self.descriptor_set_back.deinit(device);
         errdefer self.pipelines.deinit(device);
 
         self.cmdbuffer = try self.create_cmdbuf(engine, app, app_state);
@@ -758,15 +676,11 @@ pub const RendererState = struct {
 
         var desc_set_builder = app.descriptor_pool.set_builder();
         defer desc_set_builder.deinit();
-        var desc_set_builder_back = app.descriptor_pool.set_builder();
-        defer desc_set_builder_back.deinit();
 
-        try app.resources.add_binds(&desc_set_builder, &desc_set_builder_back);
+        try app.resources.add_binds(&desc_set_builder);
 
         var desc_set = try desc_set_builder.build(device);
         errdefer desc_set.deinit(device);
-        var desc_set_back = try desc_set_builder_back.build(device);
-        errdefer desc_set_back.deinit(device);
 
         if (initialized) {
             self.pipelines.bg.deinit(device);
@@ -824,48 +738,6 @@ pub const RendererState = struct {
         });
 
         if (initialized) {
-            self.pipelines.bin_reset.deinit(device);
-        }
-        self.pipelines.bin_reset = try ComputePipeline.new(device, .{
-            .shader = self.stages.shaders.map.get("bin_reset").?.code,
-            .desc_set_layouts = &.{desc_set.layout},
-        });
-
-        if (initialized) {
-            self.pipelines.particle_count.deinit(device);
-        }
-        self.pipelines.particle_count = try ComputePipeline.new(device, .{
-            .shader = self.stages.shaders.map.get("particle_count").?.code,
-            .desc_set_layouts = &.{desc_set.layout},
-        });
-
-        if (initialized) {
-            self.pipelines.bin_prefix_sum.deinit(device);
-        }
-        self.pipelines.bin_prefix_sum = try ComputePipeline.new(device, .{
-            .shader = self.stages.shaders.map.get("bin_prefix_sum").?.code,
-            .desc_set_layouts = &.{desc_set.layout},
-            .push_constant_ranges = &[_]vk.PushConstantRange{.{
-                .stage_flags = .{ .compute_bit = true },
-                .offset = 0,
-                .size = @sizeOf(ResourceManager.PushConstants.shader_type),
-            }},
-        });
-
-        if (initialized) {
-            self.pipelines.particle_binning.deinit(device);
-        }
-        self.pipelines.particle_binning = try ComputePipeline.new(device, .{
-            .shader = self.stages.shaders.map.get("particle_binning").?.code,
-            .desc_set_layouts = &.{desc_set.layout},
-            .push_constant_ranges = &[_]vk.PushConstantRange{.{
-                .stage_flags = .{ .compute_bit = true },
-                .offset = 0,
-                .size = @sizeOf(ResourceManager.PushConstants.shader_type),
-            }},
-        });
-
-        if (initialized) {
             self.pipelines.tick_particles.deinit(device);
         }
         self.pipelines.tick_particles = try ComputePipeline.new(device, .{
@@ -880,10 +752,8 @@ pub const RendererState = struct {
 
         if (initialized) {
             self.descriptor_set.deinit(device);
-            self.descriptor_set_back.deinit(device);
         }
         self.descriptor_set = desc_set;
-        self.descriptor_set_back = desc_set_back;
     }
 
     pub fn create_cmdbuf(self: *@This(), engine: *Engine, app: *App, app_state: *AppState) !CmdBuffer {
@@ -892,8 +762,6 @@ pub const RendererState = struct {
 
         const alloc = app_state.arena.allocator();
         // _ = alloc;
-
-        // std.mem.swap(DescriptorSet, &self.descriptor_set, &self.descriptor_set_back);
 
         var cmdbuf = try CmdBuffer.init(device, .{
             .pool = app.command_pool,
@@ -919,61 +787,6 @@ pub const RendererState = struct {
         cmdbuf.memBarrier(device, .{});
 
         for (0..app_state.steps_per_frame) |_| {
-            // bin reset
-            cmdbuf.bindCompute(device, .{
-                .pipeline = self.pipelines.bin_reset,
-                .desc_set = self.descriptor_set.set,
-            });
-            cmdbuf.dispatch(device, .{ .x = math.divide_roof(cast(u32, app_state.params.bin_buf_size), 64) });
-            cmdbuf.memBarrier(device, .{});
-
-            // count particles
-            cmdbuf.bindCompute(device, .{
-                .pipeline = self.pipelines.particle_count,
-                .desc_set = self.descriptor_set.set,
-            });
-            cmdbuf.dispatch(device, .{ .x = math.divide_roof(app_state.params.particle_count, 64) });
-            cmdbuf.memBarrier(device, .{});
-
-            // bin count prefix sum
-            var reduce_step: u5 = 0;
-            while (true) : (reduce_step += 1) {
-                cmdbuf.bindCompute(device, .{
-                    .pipeline = self.pipelines.bin_prefix_sum,
-                    .desc_set = self.descriptor_set.set,
-                });
-
-                {
-                    const constants = try alloc.create(ResourceManager.PushConstants.shader_type);
-                    constants.* = .{ .reduce_step = reduce_step, .seed = app_state.rng.random().int(i32) };
-                    cmdbuf.push_constants(device, self.pipelines.bin_prefix_sum.layout, std.mem.asBytes(constants), .{ .compute_bit = true });
-                }
-
-                // 1 larger then the buffer to store capacities
-                cmdbuf.dispatch(device, .{ .x = math.divide_roof(cast(u32, app_state.params.bin_buf_size + 1), 64) });
-                cmdbuf.memBarrier(device, .{});
-
-                // std.debug.print("{any} {any}\n", .{ reduce_step, app_state.params.bin_buf_size - (@as(i32, 1) << reduce_step) });
-                if (app_state.params.bin_buf_size - (@as(i32, 1) << reduce_step) < 0) {
-                    break;
-                }
-
-                std.mem.swap(DescriptorSet, &self.descriptor_set, &self.descriptor_set_back);
-            }
-
-            // bin particles
-            cmdbuf.bindCompute(device, .{
-                .pipeline = self.pipelines.particle_binning,
-                .desc_set = self.descriptor_set.set,
-            });
-            {
-                const constants = try alloc.create(ResourceManager.PushConstants.shader_type);
-                constants.* = .{ .seed = app_state.rng.random().int(i32) };
-                cmdbuf.push_constants(device, self.pipelines.particle_binning.layout, std.mem.asBytes(constants), .{ .compute_bit = true });
-            }
-            cmdbuf.dispatch(device, .{ .x = math.divide_roof(app_state.params.particle_count, 64) });
-            cmdbuf.memBarrier(device, .{});
-
             // tick particles
             cmdbuf.bindCompute(device, .{
                 .pipeline = self.pipelines.tick_particles,
@@ -1034,7 +847,6 @@ pub const RendererState = struct {
         defer self.cmdbuffer.deinit(device);
 
         defer self.descriptor_set.deinit(device);
-        defer self.descriptor_set_back.deinit(device);
 
         defer self.stages.deinit();
         defer self.pipelines.deinit(device);
@@ -1129,7 +941,6 @@ pub const AppState = struct {
             .arena = std.heap.ArenaAllocator.init(allocator.*),
         };
 
-        this.randomize_particle_forces(app);
         this.randomize_particle_colors(app);
         this.randomize_particle_types(app);
         this.randomize_particle_attrs(app);
@@ -1149,26 +960,6 @@ pub const AppState = struct {
         _ = self.resize_fuse.fuse();
         _ = self.shader_fuse.fuse();
         _ = self.cmdbuf_fuse.fuse();
-    }
-
-    fn randomize_particle_forces(self: *@This(), app: *App) void {
-        const zrng = .{
-            .collision_strength = math.Rng.init(self.rng.random()).with2(.{ .min = 0.7, .max = 1 }),
-            .collision_radius = math.Rng.init(self.rng.random()).with2(.{ .min = 0.3, .max = 0.4 }),
-            .attraction_strength = math.Rng.init(self.rng.random()).with2(.{ .min = -0.3, .max = 1.0 }),
-            .attraction_radius = math.Rng.init(self.rng.random()).with2(.{ .min = 0.7, .max = 1 }),
-            .attraction_peak_dist_factor = math.Rng.init(self.rng.random()).with2(.{ .min = 0.6, .max = 0.7 }),
-        };
-        for (app.resources.particle_force_matrix) |*pf| {
-            pf.* = std.mem.zeroes(@TypeOf(pf.*));
-            inline for (@typeInfo(@TypeOf(pf.*)).@"struct".fields) |f| {
-                if (comptime @hasField(@TypeOf(zrng), f.name)) {
-                    @field(pf, f.name) = @field(zrng, f.name).next();
-                }
-            }
-        }
-
-        self.randomize.particle_forces = true;
     }
 
     fn randomize_particle_colors(self: *@This(), app: *App) void {
@@ -1382,15 +1173,9 @@ pub const GuiState = struct {
         c.ImGui_Text("particle count: %d", state.params.particle_count);
 
         if (c.ImGui_Button("randomize")) {
-            state.randomize_particle_forces(app);
             state.randomize_particle_colors(app);
             state.randomize_particle_types(app);
             state.randomize_particle_attrs(app);
-        }
-
-        if (c.ImGui_Button("randomize particle forces")) {
-            state.randomize_particle_forces(app);
-            state.randomize_particle_types(app);
         }
 
         if (c.ImGui_Button("randomize particle colors")) {
@@ -1414,20 +1199,6 @@ pub const GuiState = struct {
                 self.editParticleType(pt);
             }
         }
-        c.ImGui_Text(" ");
-        {
-            c.ImGui_PushID("particle_force_matrix");
-            defer c.ImGui_PopID();
-            c.ImGui_Text("Particle forces");
-            for (app.resources.particle_force_matrix[0 .. state.params.particle_type_count * state.params.particle_type_count], 0..) |*pf, i| {
-                c.ImGui_PushIDInt(@intCast(i));
-                defer c.ImGui_PopID();
-
-                c.ImGui_Text(" ");
-                c.ImGui_Text("type: %d vs %d", i / state.params.particle_type_count, i % state.params.particle_type_count);
-                self.editParticleForce(pf);
-            }
-        }
 
         if (reset) {
             _ = state.cmdbuf_fuse.fuse();
@@ -1438,13 +1209,5 @@ pub const GuiState = struct {
     fn editParticleType(_: *@This(), e: *ResourceManager.ParticleType) void {
         _ = c.ImGui_ColorEdit4("color", e.color.as_buf().ptr, c.ImGuiColorEditFlags_AlphaBar | c.ImGuiColorEditFlags_Float);
         _ = c.ImGui_SliderFloat("particle scale", &e.particle_scale, 0, 1);
-    }
-
-    fn editParticleForce(_: *@This(), e: *ResourceManager.ParticleForce) void {
-        _ = c.ImGui_SliderFloat("attraction_strength", &e.attraction_strength, -1, 1);
-        _ = c.ImGui_SliderFloat("attraction_radius", &e.attraction_radius, 0, 1);
-        _ = c.ImGui_SliderFloat("attraction_peak_dist_factor", &e.attraction_peak_dist_factor, 0, 1);
-        _ = c.ImGui_SliderFloat("collision_strength", &e.collision_strength, -1, 1);
-        _ = c.ImGui_SliderFloat("collision_radius", &e.collision_radius, 0, 1);
     }
 };

@@ -1257,6 +1257,7 @@ pub const ShaderUtils = struct {
         }
     }
 
+    // TODO: default field values
     pub fn shader_object(comptime obj_typ: type, obj: anytype) shader_type(obj_typ) {
         const Type = std.builtin.Type;
         const Ut: Type = @typeInfo(obj_typ);

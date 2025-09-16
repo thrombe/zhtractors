@@ -11,20 +11,6 @@
  struct ParticleType {
      vec4 color;
      float particle_scale;
-     uint _pad0;
-     uint _pad1;
-     uint _pad2;
- };
-
- struct ParticleForce {
-     float attraction_strength;
-     float attraction_radius;
-     float attraction_peak_dist_factor;
-     float collision_strength;
-     float collision_radius;
-     uint _pad0;
-     uint _pad1;
-     uint _pad2;
  };
 
  struct Particle {
@@ -33,7 +19,6 @@
      uint type_index;
      float age;
      float exposure;
-     uint _pad0;
  };
 
  struct Params {
@@ -64,17 +49,11 @@
  };
 
  struct PushConstants {
-     int reduce_step;
      int seed;
-     uint _pad0;
-     uint _pad1;
  };
 
  struct Camera2DMeta {
      uint did_move;
-     uint _pad1;
-     uint _pad2;
-     uint _pad3;
  };
 
  struct Camera2D {
@@ -90,7 +69,6 @@
      int height;
      int monitor_width;
      int monitor_height;
-     uint pad0;
  };
 
  struct Mouse {
@@ -111,9 +89,5 @@
  const int _bind_particles_draw_call = 1;
  const int _bind_scratch = 2;
  const int _bind_particle_types = 3;
- const int _bind_particle_force_matrix = 4;
- const int _bind_particles_back = 5;
- const int _bind_particles = 6;
- const int _bind_particle_bins_back = 7;
- const int _bind_particle_bins = 8;
+ const int _bind_particles = 4;
 
