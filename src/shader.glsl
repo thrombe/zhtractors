@@ -58,30 +58,59 @@ void set_seed(int id) {
     seed = int(ubo.frame.frame) ^ id ^ floatBitsToInt(ubo.frame.time) ^ push.seed;
 }
 
-// vec3 attractor(vec3 pos) {
-//     float a = 0.16;
-//     float x = pos.x, y = pos.y, z = pos.z;
-//     float dt = 0.015;
+vec3 attractor(vec3 pos) {
+    float a, b, c, d, e, f;
+    float x = pos.x, y = pos.y, z = pos.z;
+    float dt = ubo.params.delta;
  
-//     float dx, dy, dz;
-//     dx = (-a*x + sin(y)) * dt;
-//     dy = (-a*y + sin(z)) * dt;
-//     dz = (-a*z + sin(x)) * dt;
-//     return vec3(dx, dy, dz);
-// }
+    float dx, dy, dz;
 
-vec3 attractor(vec3 p) {
-    float dt    = 0.0001;    // Time step
-    float sigma = 10.0;
-    float rho   = 28.0;
-    float beta  = 8.0 / 3.0;
+    // a = 0.00 + ubo.frame.time * 0.0009;
+    // dx = (-a*x + sin(y)) * dt;
+    // dy = (-a*y + sin(z)) * dt;
+    // dz = (-a*z + sin(x)) * dt;
 
-    float dx = sigma * (p.y - p.x);
-    float dy = p.x * (rho - p.z) - p.y;
-    float dz = p.x * p.y - beta * p.z;
+//     a = 0.80, b = 0.7, c = 0.6;
+// d = 3.5, e = 0.1;
+// dx = ((z-b) * x - d*y) * dt;
+// dy = (d * x + (z-b) * y) * dt;
+// dz = (c + a*z - ((z*z*z) / 3.0) - (x*x) + e * z * (x*x*x)) * dt;
 
-    return vec3(dx, dy, dz) * dt;
+// a = 40.0, b = 1.833, c = 0.16;
+// d = 0.65, e = 55.0, f = 20.0;
+
+// dx = (a*(y-x) + c*x*z) * dt;
+// dy = (e*x + f*y - x*z) * dt;
+// dz = (b*z + x*y - d*x*x) * dt;
+
+// a = 3.0, b = 2.7, c = 1.7;
+// d = 2.0, e = 9.0;
+
+// dx = (y- a*x +b*y*z) * dt;
+// dy = (c*y -x*z +z) * dt;
+// dz = (d*x*y - e*z) * dt;
+
+a = -5.5, b = 3.5, d = -1.0;
+
+dx = y * dt;
+dy = z * dt;
+dz = (-a*x -b*y -z + (d * (pow(x, 3.0)))) * dt;
+
+    return vec3(dx, dy, dz);
 }
+
+// vec3 attractor(vec3 p) {
+//     float dt    = 0.0001;    // Time step
+//     float sigma = 10.0;
+//     float rho   = 28.0;
+//     float beta  = 8.0 / 3.0;
+
+//     float dx = sigma * (p.y - p.x);
+//     float dy = p.x * (rho - p.z) - p.y;
+//     float dz = p.x * p.y - beta * p.z;
+
+//     return vec3(dx, dy, dz) * dt;
+// }
 
 #ifdef SPAWN_PARTICLES_PASS
     layout (local_size_x = 8, local_size_y = 8) in;
@@ -136,7 +165,7 @@ vec3 attractor(vec3 p) {
             }
             if (ubo.params.randomize_particle_attrs != 0) {
                 vec3 world = vec3(float(ubo.params.world_size_x), float(ubo.params.world_size_y), float(ubo.params.world_size_z));
-                p.pos = vec3(random(), random(), random()) * world;
+                p.pos = (vec3(random(), random(), random()) - 0.5) * vec3(1000.0);
                 p.vel = (vec3(random(), random(), random()) - 0.5) * 2000;
             }
         }
@@ -144,16 +173,21 @@ vec3 attractor(vec3 p) {
         // ivec3 bpos = ivec3(p.pos / ubo.params.bin_size);
         // ivec3 bworld = ivec3(ubo.params.bin_buf_size_x, ubo.params.bin_buf_size_y, ubo.params.bin_buf_size_z);
 
-        // ivec3 world = ivec3(ubo.params.world_size_x, ubo.params.world_size_y, ubo.params.world_size_z);
+        ivec3 world = ivec3(ubo.params.world_size_x, ubo.params.world_size_y, ubo.params.world_size_z);
 
-        // vec2 wres = vec2(ubo.frame.width, ubo.frame.height);
-        // vec3 mouse = vec3(vec2(float(ubo.mouse.x), float(ubo.mouse.y)), 0);
-        // // mouse.xy -= wres / 2.0;
-        // mouse.xy /= ubo.params.zoom;
-        // mouse.xy -= ubo.camera.eye.xy * wres / world.xy;
-        // // mouse.xy /= ubo.params.grid_size;
+        vec2 wres = vec2(ubo.frame.width, ubo.frame.height);
+        vec3 mouse = vec3(vec2(float(ubo.mouse.x), float(ubo.mouse.y)), 0);
+        mouse.xy -= wres / 2.0;
+        mouse.xy /= ubo.params.zoom;
+        mouse.xy += wres / 2.0;
+        mouse.xy -= ubo.camera.eye.xy;
+        // mouse.xy *= ubo.params.zoom;
+        // mouse.xy /= ubo.params.grid_size;
         // // mouse.xy /= wres;
-        // // mouse.xy *= world.xy;
+        // mouse.xy *= world.xy;
+
+        p.pos = mouse + vec3(vec2(ubo.params.bin_size), 0.0) * 0.0 - 0.0*vec3(vec2(-60, 390), 0.0);
+        // p.pos = ubo.camera.eye.xyz / ubo.params.grid_size + vec3(wres.xy/2.0, 0.0);
 
         // vec3 pforce = normalize(vec3(mouse - p.pos)) * 100.0;
         // p.vel *= ubo.params.friction;
@@ -175,7 +209,8 @@ vec3 attractor(vec3 p) {
         //     p.pos = mouse;
         // }
 
-        p.pos += attractor(p.pos);
+        // f32 scale = 100.0;
+        // p.pos += attractor(p.pos/scale) *scale;
         particles[id] = p;
     }
 #endif // TICK_PARTICLES_PASS
@@ -201,6 +236,9 @@ vec3 attractor(vec3 p) {
         f32 z_shrink = (1.0 - ubo.params.particle_z_shrinking_factor) + z_factor * ubo.params.particle_z_shrinking_factor;
         z_shrink = clamp(z_shrink, 0, 1);
 
+        z_factor = 0.0;
+        // z_shrink = 1.0;
+
         vec2 pos = p.pos.xy + ubo.camera.eye.xy - vec2(float(ubo.params.world_size_x), float(ubo.params.world_size_y)) * 0.5;
         pos += vpos * 0.5 * particle_size * z_shrink;
         pos /= mres; // world space to 0..1
@@ -209,6 +247,7 @@ vec3 attractor(vec3 p) {
         pos *= 2.0;
         gl_Position = vec4(pos, 0.0, 1.0);
 
+        // vcolor = vec4(0.5, 0.5, 0.5, 1.0);
         vcolor = t.color;
         vuv = quad_uvs[vert_index];
     }
@@ -246,12 +285,6 @@ vec3 attractor(vec3 p) {
         vec2 eye = ubo.camera.eye.xy;
         vec2 mres = vec2(ubo.frame.monitor_width, ubo.frame.monitor_height);
         vec2 wres = vec2(ubo.frame.width, ubo.frame.height);
-        vec2 mouse = vec2(float(ubo.mouse.x), float(ubo.mouse.y));
-        float bad = 0;
-
-        if (length(max(vec2(0.0), mouse - wres)) > 0) {
-            bad = 1;
-        }
 
         vec2 coord = gl_FragCoord.xy;
         coord -= wres / 2.0;
@@ -259,17 +292,11 @@ vec3 attractor(vec3 p) {
         coord -= eye;
         coord /= grid_size;
 
-        mouse -= wres / 2.0;
-        mouse /= zoom;
-        mouse -= eye;
-        mouse /= grid_size;
-
         // TODO: do a starry shader instead of a grid
         vec2 rounded = vec2(floor(coord.x), floor(coord.y));
         float checker = mod(floor(rounded.x) + floor(rounded.y), 2.0);
 
         vec3 color = mix(vec3(0.01, 0.01, 0.01), vec3(0.05, 0.05, 0.05), checker);
-        // color = vec3(mouse - coord, 0.0);
 
         // debug renderr `particle_bins`
         // ivec2 pos = ivec2(int(coord.x), int(coord.y) + 3);
@@ -279,7 +306,7 @@ vec3 attractor(vec3 p) {
         // }
 
         // set bad_flag to 1 for debugging
-        if (state.bad_flag > 0 || bad == 1) {
+        if (state.bad_flag > 0) {
             color = vec3(1, 0, 0);
         }
         

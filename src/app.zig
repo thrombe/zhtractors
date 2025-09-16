@@ -432,6 +432,7 @@ pub const ResourceManager = struct {
 
         const Params = struct {
             delta: f32 = 0,
+            steps_per_frame: u32 = 1,
             particle_visual_size: u32 = 16,
             grid_size: u32 = 32,
             zoom: f32 = 1.0,
@@ -466,6 +467,7 @@ pub const ResourceManager = struct {
             // const inputs = window.input();
 
             state.params.delta = state.ticker.scaled.delta / @as(f32, @floatFromInt(state.steps_per_frame));
+            state.params.steps_per_frame = state.steps_per_frame;
 
             const spawn_count = @min(state.spawn_count, 64);
             state.spawn_count -= spawn_count;
@@ -1023,6 +1025,12 @@ pub const AppState = struct {
         const window = engine.window;
 
         const res = try window.get_res();
+        std.log.debug("monitor rez: {any} {any} {any} {any}", .{
+            res,
+            window.extent,
+            cast(u32, window.input_state.mouse.x),
+            cast(u32, window.input_state.mouse.y),
+        });
         var input = window.input();
 
         // local input tick

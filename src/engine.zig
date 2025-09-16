@@ -705,6 +705,13 @@ pub const Window = struct {
     }
 
     pub fn get_res(self: *@This()) !struct { width: u32, height: u32 } {
+        var count: i32 = undefined;
+        const monitors = c.glfwGetMonitors(&count);
+        for (monitors[0..@intCast(count)]) |monitor| {
+            std.log.debug("monitor: {any}", .{c.glfwGetVideoMode(monitor).?.*});
+        }
+        std.log.debug("window monitor: {any}", .{c.glfwGetWindowMonitor(self.handle)});
+
         const monitor = c.glfwGetWindowMonitor(self.handle) orelse c.glfwGetPrimaryMonitor() orelse return error.CouldNotGetMonitor;
         const mode = c.glfwGetVideoMode(monitor);
         return .{

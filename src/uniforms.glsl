@@ -23,6 +23,7 @@
 
  struct Params {
      float delta;
+     uint steps_per_frame;
      uint particle_visual_size;
      uint grid_size;
      float zoom;
