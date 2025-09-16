@@ -109,7 +109,7 @@ void set_seed(int id) {
 
         vec2 wres = vec2(ubo.frame.width, ubo.frame.height);
         vec3 mouse = vec3(2.0 * vec2(float(ubo.mouse.x), float(ubo.mouse.y))/wres - 1.0, 0);
-        vec3 pforce = normalize(max(vec3(0.001), mouse - p.pos));
+        vec3 pforce = normalize(mouse - p.pos) * 100.0;
         p.vel *= ubo.params.friction;
         p.vel += pforce * ubo.params.delta;
         p.pos += p.vel * ubo.params.delta;
@@ -122,7 +122,7 @@ void set_seed(int id) {
         p.pos = clamp(p.pos, vec3(0.0), world);
 
         p.age += 100.0 * ubo.params.delta;
-        p.exposure = exposure * 100.0 * ubo.params.delta;
+        p.exposure += 100.0 * ubo.params.delta;
 
         particles[id] = p;
     }

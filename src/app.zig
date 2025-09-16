@@ -287,7 +287,7 @@ pub const ResourceManager = struct {
         const device = &ctx.device;
 
         var uniform_buf = try Buffer.new_initialized(ctx, .{
-            .size = @sizeOf(Uniforms),
+            .size = @sizeOf(Uniforms.shader_type),
             .usage = .{ .uniform_buffer_bit = true },
             .memory_type = .{
                 // https://community.khronos.org/t/memory-type-practice-for-an-mvp-uniform-buffer/109458/7
@@ -299,7 +299,7 @@ pub const ResourceManager = struct {
                 .host_coherent_bit = true,
             },
             .desc_type = .uniform_buffer,
-        }, std.mem.zeroes(Uniforms), pool);
+        }, std.mem.zeroes(Uniforms.shader_type), pool);
         errdefer uniform_buf.deinit(device);
 
         const particle_types = try allocator.alloc(ParticleType, v.particle_type_count);
@@ -374,8 +374,8 @@ pub const ResourceManager = struct {
         const mapped = maybe_mapped orelse return error.MappingMemoryFailed;
         defer device.unmapMemory(self.uniform_buf.memory);
 
-        const mem: *Uniforms = @ptrCast(@alignCast(mapped));
-        mem.* = self.uniform;
+        const mem: *Uniforms.shader_type = @ptrCast(@alignCast(mapped));
+        mem.* = ShaderUtils.shader_object(Uniforms, self.uniform);
     }
 
     fn update_particle_types(self: *@This(), device: *Device) !void {
