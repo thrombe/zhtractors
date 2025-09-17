@@ -58,8 +58,7 @@ void set_seed(int id) {
     seed = int(ubo.frame.frame) ^ id ^ floatBitsToInt(ubo.frame.time) ^ push.seed;
 }
 
-// TODO: try applying multiple attractors at the same time
-vec3 attractor(vec3 pos) {
+vec3 thomas_attractor(vec3 pos) {
     float a, b, c, d, e, f;
     float x = pos.x, y = pos.y, z = pos.z;
     float dt = ubo.params.delta;
@@ -71,6 +70,75 @@ vec3 attractor(vec3 pos) {
     dx = (-a*x + sin(y)) * dt;
     dy = (-a*y + sin(z)) * dt;
     dz = (-a*z + sin(x)) * dt;
+    return vec3(dx, dy, dz);
+}
+
+vec3 chen_lee_attractor(vec3 pos) {
+    float a, b, c, d, e, f;
+    float x = pos.x, y = pos.y, z = pos.z;
+    float dt = ubo.params.delta;
+ 
+    float dx, dy, dz;
+
+    a = 5.0, b = -10.0;
+    c = -0.38, d = 3.0;
+
+    dx = (a*x - y*z) * dt;
+    dy = (b*y + x*z) * dt;
+    dz = (c*z + (x*y) / d) * dt;
+    
+    return vec3(dx, dy, dz);
+}
+
+vec3 simone_attractor(vec3 pos) {
+    float a, b, c, d, e, f;
+    float x = pos.x, y = pos.y, z = pos.z;
+    float dt = ubo.params.delta;
+ 
+    float dx, dy, dz, xn, yn, zn, scale;
+    vec3 next;
+
+    a = 5.51, b = 4.84;
+    scale = 3.0;
+
+    xn = sin(a * y) + cos(b * z);
+    yn = sin(a * z) + cos(b * x);
+    zn = sin(a * x) + cos(b * y);
+    next = scale * vec3(xn, yn, zn);
+    dx = (next.x - x) * dt;
+    dy = (next.y - y) * dt;
+    dz = (next.z - z) * dt;
+
+    return vec3(dx, dy, dz);
+}
+
+
+vec3 attractor(vec3 pos) {
+    vec3 a1 = thomas_attractor(pos);
+    vec3 a2 = chen_lee_attractor(pos);
+    a1 = normalize(a1);
+    a2 = normalize(a2);
+    a1 *= 0.01;
+    a2 *= 0.01;
+    return max(abs(a1), abs(a2)) * sign(a1);
+
+    float a, b, c, d, e, f;
+    float x = pos.x, y = pos.y, z = pos.z;
+    float dt = ubo.params.delta;
+ 
+    float dx, dy, dz, xn, yn, zn, scale;
+    vec3 next;
+
+a = 5.51, b = 4.84;
+scale = 3.0;
+
+xn = sin(a * y) + cos(b * z);
+yn = sin(a * z) + cos(b * x);
+zn = sin(a * x) + cos(b * y);
+next = scale * vec3(xn, yn, zn);
+dx = (next.x - x) * dt;
+dy = (next.y - y) * dt;
+dz = (next.z - z) * dt;
 
 //     a = 0.80, b = 0.7, c = 0.6;
 // d = 3.5, e = 0.1;
