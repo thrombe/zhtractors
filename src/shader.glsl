@@ -242,6 +242,9 @@ vec3 attractor(vec3 pos) {
         ParticleType t = particle_types[p.type_index];
         vec2 vpos = quad_verts[vert_index].xy;
 
+        f32 time = ubo.frame.time * 0.1;
+        p.pos = vec3(p.pos.x * cos(time) - p.pos.z * sin(time), p.pos.y, p.pos.x * sin(time) + p.pos.z * cos(time));
+
         float zoom = ubo.params.zoom;
         float particle_size = t.particle_scale * ubo.params.particle_visual_size;
         vec2 wres = vec2(ubo.frame.width, ubo.frame.height);
