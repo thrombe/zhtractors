@@ -379,6 +379,7 @@ vec3 attractor(vec3 pos) {
         pos *= 2.0;
         gl_Position = vec4(pos, 0.0, 1.0);
 
+        vpos = vpos * particle_size;
         gl_Position = ubo.params.world_to_screen * vec4(p.pos + ubo.camera.right * vpos.x + ubo.camera.up * vpos.y - ubo.camera.eye.xyz, 1.0);
 
         // vcolor = vec4(0.5, 0.5, 0.5, 1.0);
