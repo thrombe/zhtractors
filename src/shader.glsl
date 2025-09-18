@@ -216,9 +216,11 @@ vec3 three_scroll_attractor(vec3 pos) {
 
 // https://blog.shashanktomar.com/posts/strange-attractors
 vec3 attractor(vec3 pos) {
-    vec3 a1 = thomas_attractor(pos);
-    return a1;
+    return thomas_attractor(pos);
+    // vec3 a1 = thomas_attractor(pos);
+    // return a1;
     // vec3 a2 = chen_lee_attractor(pos);
+    // return a2;
     // a1 = normalize(a1);
     // a2 = normalize(a2);
     // a1 *= 0.01;
@@ -287,27 +289,8 @@ vec3 attractor(vec3 pos) {
             }
         }
 
-        // ivec3 bpos = ivec3(p.pos / ubo.params.bin_size);
-        // ivec3 bworld = ivec3(ubo.params.bin_buf_size_x, ubo.params.bin_buf_size_y, ubo.params.bin_buf_size_z);
-
-        ivec3 world = ivec3(ubo.params.world_size_x, ubo.params.world_size_y, ubo.params.world_size_z);
-
-        vec2 wres = vec2(ubo.frame.width, ubo.frame.height);
-        vec3 mouse = vec3(vec2(float(ubo.mouse.x), float(ubo.mouse.y)), 0);
-        mouse.xy -= wres / 2.0;
-        mouse.xy /= zoom;
-        // mouse.xy += wres / 2.0;
-        mouse.xy -= ubo.camera.eye.xy;
-        mouse.xy += vec2(float(ubo.params.world_size_x), float(ubo.params.world_size_y)) * 0.5;
-        // mouse.xy *= zoom;
-        // mouse.xy /= ubo.params.grid_size;
-        // // mouse.xy /= wres;
-        // mouse.xy *= world.xy;
-
-        // p.pos = mouse;
-        // p.pos = ubo.camera.eye.xyz / ubo.params.grid_size + vec3(wres.xy/2.0, 0.0);
-
-        vec3 diff = mouse - p.pos;
+        vec3 gravity = ubo.camera.eye + ubo.camera.fwd * 50.0;
+        vec3 diff = gravity - p.pos;
         diff /= 1000.0;
         vec3 sign = vec3(1.0);
         vec3 offset = vec3(random(), random(), random());
@@ -336,12 +319,19 @@ vec3 attractor(vec3 pos) {
         // TODO: any way to get exposure?
         // p.exposure += _ * ubo.params.delta;
 
-        // if (id != 0) {
-        //     p.pos = mouse;
-        // }
-
         f32 scale = 100.0;
         p.pos += attractor(p.pos/scale) * scale;
+
+        if (id == 0) {
+            if (ubo.mouse.left + ubo.mouse.right != 0) {
+                p.pos = ubo.camera.eye + ubo.camera.fwd * 1000.0;
+                p.scale = 3.0;
+            } else {
+                p.pos = vec3(1000000);
+                p.scale = 0.0;
+            }
+        }
+
         particles[id] = p;
     }
 #endif // TICK_PARTICLES_PASS
@@ -360,7 +350,7 @@ vec3 attractor(vec3 pos) {
 
         float particle_size = t.particle_scale * ubo.params.particle_visual_size;
         vpos = vpos * particle_size * (p.scale + 0.4);
-        vec4 pos = ubo.params.world_to_screen * vec4(p.pos + ubo.camera.right * vpos.x + ubo.camera.up * vpos.y - ubo.camera.eye.xyz, 1.0);
+        vec4 pos = ubo.params.world_to_screen * vec4(p.pos + ubo.camera.right * vpos.x + ubo.camera.up * vpos.y, 1.0);
 
         z_factor = clamp(pos.z / pos.w - 0.8, 0.0, 1.0);
         gl_Position = pos;
