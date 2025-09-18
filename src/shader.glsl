@@ -29,6 +29,8 @@ vec2 quad_uvs[6] = vec2[6](
     vec2(0.0, 0.0)
 );
 
+f32 zoom = 1.0;
+
 #ifdef COMPUTE_PASS
     #define bufffer buffer
 #else
@@ -292,11 +294,11 @@ vec3 attractor(vec3 pos) {
         vec2 wres = vec2(ubo.frame.width, ubo.frame.height);
         vec3 mouse = vec3(vec2(float(ubo.mouse.x), float(ubo.mouse.y)), 0);
         mouse.xy -= wres / 2.0;
-        mouse.xy /= ubo.params.zoom;
+        mouse.xy /= zoom;
         // mouse.xy += wres / 2.0;
         mouse.xy -= ubo.camera.eye.xy;
         mouse.xy += vec2(float(ubo.params.world_size_x), float(ubo.params.world_size_y)) * 0.5;
-        // mouse.xy *= ubo.params.zoom;
+        // mouse.xy *= zoom;
         // mouse.xy /= ubo.params.grid_size;
         // // mouse.xy /= wres;
         // mouse.xy *= world.xy;
@@ -355,10 +357,9 @@ vec3 attractor(vec3 pos) {
         ParticleType t = particle_types[p.type_index];
         vec2 vpos = quad_verts[vert_index].xy;
 
-        f32 time = ubo.frame.time * 0.1;
-        p.pos = vec3(p.pos.x * cos(time) - p.pos.z * sin(time), p.pos.y, p.pos.x * sin(time) + p.pos.z * cos(time));
+        // f32 time = ubo.frame.time * 0.1;
+        // p.pos = vec3(p.pos.x * cos(time) - p.pos.z * sin(time), p.pos.y, p.pos.x * sin(time) + p.pos.z * cos(time));
 
-        float zoom = ubo.params.zoom;
         float particle_size = t.particle_scale * ubo.params.particle_visual_size;
         vec2 wres = vec2(ubo.frame.width, ubo.frame.height);
 
@@ -378,6 +379,8 @@ vec3 attractor(vec3 pos) {
         pos *= 2.0;
         gl_Position = vec4(pos, 0.0, 1.0);
 
+        gl_Position = ubo.params.world_to_screen * vec4(p.pos + ubo.camera.right * vpos.x + ubo.camera.up * vpos.y - ubo.camera.eye.xyz, 1.0);
+
         // vcolor = vec4(0.5, 0.5, 0.5, 1.0);
         vcolor = t.color;
         vuv = quad_uvs[vert_index];
@@ -390,7 +393,6 @@ vec3 attractor(vec3 pos) {
     layout(location = 2) in f32 z_factor;
     layout(location = 0) out vec4 fcolor;
     void main() {
-        float zoom = ubo.params.zoom;
         float distanceFromCenter = length(vuv.xy - 0.5);
         float mask = 1.0 - smoothstep(0.5 - z_factor * ubo.params.particle_z_blur_factor - 0.1/zoom, 0.5, distanceFromCenter);
         // mask = pow(1.0 - distanceFromCenter, 4.5) * mask;
@@ -412,7 +414,6 @@ vec3 attractor(vec3 pos) {
     layout(location = 0) out vec4 fcolor;
     void main() {
         float grid_size = ubo.params.grid_size;
-        float zoom = ubo.params.zoom;
         vec2 eye = ubo.camera.eye.xy;
         vec2 wres = vec2(ubo.frame.width, ubo.frame.height);
 

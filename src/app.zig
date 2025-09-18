@@ -33,6 +33,8 @@ const DescriptorPool = render_utils.DescriptorPool;
 const DescriptorSet = render_utils.DescriptorSet;
 const CmdBuffer = render_utils.CmdBuffer;
 
+const world_mod = @import("world.zig");
+
 const main = @import("main.zig");
 const allocator = main.allocator;
 
@@ -425,17 +427,17 @@ pub const ResourceManager = struct {
     };
 
     pub const Uniforms = struct {
-        camera: utils_mod.ShaderUtils.Camera2D,
+        camera: utils_mod.ShaderUtils.Camera3D,
         frame: utils_mod.ShaderUtils.Frame,
         mouse: utils_mod.ShaderUtils.Mouse,
         params: Params,
 
         const Params = struct {
+            world_to_screen: math.Mat4x4,
             delta: f32 = 0,
             steps_per_frame: u32 = 1,
             particle_visual_size: u32 = 16,
             grid_size: u32 = 32,
-            zoom: f32 = 1.0,
             particle_z_shrinking_factor: f32 = 0.7,
             particle_z_blur_factor: f32 = 0.27,
             friction: f32,
@@ -466,6 +468,14 @@ pub const ResourceManager = struct {
         ) !@This() {
             // const inputs = window.input();
 
+            const dirs = state.camera.dirs(state.controller.pitch, state.controller.yaw);
+            state.params.world_to_screen = state.camera.world_to_screen_mat(.{
+                .width = window.extent.width,
+                .height = window.extent.height,
+                .pos = state.transform.pos,
+                .pitch = state.controller.pitch,
+                .yaw = state.controller.yaw,
+            });
             state.params.delta = state.ticker.scaled.delta / @as(f32, @floatFromInt(state.steps_per_frame));
             state.params.steps_per_frame = state.steps_per_frame;
 
@@ -513,7 +523,17 @@ pub const ResourceManager = struct {
             if (spawn_count > 0) _ = state.cmdbuf_fuse.fuse();
 
             const uniform = @This(){
-                .camera = state.camera,
+                .camera = .{
+                    .eye = state.transform.pos,
+                    .fwd = dirs.fwd,
+                    .right = dirs.right,
+                    .up = dirs.up,
+                    .meta = .{
+                        .did_change = @intFromBool(state.controller.did_rotate or state.controller.did_move),
+                        .did_move = @intFromBool(state.controller.did_move),
+                        .did_rotate = @intFromBool(state.controller.did_rotate),
+                    },
+                },
                 .mouse = .{
                     .x = state.mouse.x,
                     .y = state.mouse.y,
@@ -908,6 +928,7 @@ pub const AppState = struct {
     bin_buf_size_z_max: i32 = 5,
     requested_world_size: math.Vec3T(i32) = .{ .x = 1800, .y = 1200, .z = 13 },
     params: ResourceManager.Uniforms.Params = .{
+        .world_to_screen = std.mem.zeroes(math.Mat4x4),
         .spawn_count = 0,
         .friction = 0,
 
@@ -921,7 +942,17 @@ pub const AppState = struct {
         .world_size_y = 0,
         .world_size_z = 0,
     },
-    camera: ShaderUtils.Camera2D = .{ .eye = .{} },
+    camera: math.Camera = .init(
+        math.Camera.constants.basis.vulkan,
+        math.Camera.constants.basis.opengl,
+    ),
+    controller: world_mod.Components.Controller = .{
+        .yaw = std.math.pi,
+        .speed = 300.0,
+    },
+    transform: struct {
+        pos: math.Vec3 = .{ .z = 2 },
+    } = .{},
 
     arena: std.heap.ArenaAllocator,
 
@@ -1019,6 +1050,7 @@ pub const AppState = struct {
         defer app.telemetry.end_sample();
 
         const window = engine.window;
+        const delta = self.ticker.real.delta;
 
         var input = window.input();
 
@@ -1053,11 +1085,11 @@ pub const AppState = struct {
             //     );
             // }
 
-            // if (mouse.left.just_pressed() and !self.focus) {
-            //     self.focus = true;
-            //     imgui_io.ConfigFlags |= c.ImGuiConfigFlags_NoMouse;
-            //     window.hide_cursor(true);
-            // }
+            if (mouse.left.just_pressed() and !self.focus) {
+                self.focus = true;
+                imgui_io.ConfigFlags |= c.ImGuiConfigFlags_NoMouse;
+                window.hide_cursor(true);
+            }
             if (kb.escape.just_pressed() and !self.focus) {
                 window.queue_close();
             }
@@ -1075,17 +1107,49 @@ pub const AppState = struct {
 
             self.frame += 1;
 
-            if (!mouse.middle.pressed()) {
+            if (!self.focus) {
                 mouse.dx = 0;
                 mouse.dy = 0;
             }
         }
 
         {
-            self.camera.eye.x += @as(f32, @floatCast(input.mouse.dx)) / self.params.zoom;
-            self.camera.eye.y += @as(f32, @floatCast(input.mouse.dy)) / self.params.zoom;
-            self.camera.meta.did_move = @intCast(@intFromBool(@abs(input.mouse.dx) + @abs(input.mouse.dy) > 0.0001));
-            self.params.zoom += self.params.zoom * cast(f32, input.mouse.scroll.dy) / 10.0;
+            const mouse = &input.mouse;
+            const kb = &input.keys;
+
+            const rot = self.camera.rot_quat(self.controller.pitch, self.controller.yaw);
+            const fwd = rot.rotate_vector(self.camera.world_basis.fwd);
+            const right = rot.rotate_vector(self.camera.world_basis.right);
+
+            var speed = self.controller.speed;
+            if (kb.shift.pressed()) {
+                speed *= 2.0;
+            }
+            if (kb.ctrl.pressed()) {
+                speed *= 0.1;
+            }
+
+            if (kb.w.pressed()) {
+                self.transform.pos = self.transform.pos.add(fwd.scale(delta * speed));
+            }
+            if (kb.a.pressed()) {
+                self.transform.pos = self.transform.pos.sub(right.scale(delta * speed));
+            }
+            if (kb.s.pressed()) {
+                self.transform.pos = self.transform.pos.sub(fwd.scale(delta * speed));
+            }
+            if (kb.d.pressed()) {
+                self.transform.pos = self.transform.pos.add(right.scale(delta * speed));
+            }
+
+            self.controller.did_move = kb.w.pressed() or kb.a.pressed() or kb.s.pressed() or kb.d.pressed();
+            self.controller.did_rotate = @abs(mouse.dx) + @abs(mouse.dy) > 0.0001;
+
+            if (self.controller.did_rotate) {
+                self.controller.yaw += @as(f32, @floatCast(mouse.dx)) * self.controller.sensitivity_scale * self.controller.sensitivity;
+                self.controller.pitch += @as(f32, @floatCast(mouse.dy)) * self.controller.sensitivity_scale * self.controller.sensitivity;
+                self.controller.pitch = std.math.clamp(self.controller.pitch, -std.math.pi / 2.0 + 0.001, std.math.pi / 2.0 - 0.001);
+            }
         }
     }
 
@@ -1141,7 +1205,6 @@ pub const GuiState = struct {
 
         _ = c.ImGui_SliderInt("FPS cap", @ptrCast(&state.fps_cap), 5, 500);
         reset = c.ImGui_SliderInt("spawn count", @ptrCast(&state.spawn_count), 0, 10000) or reset;
-        _ = c.ImGui_SliderFloat("zoom", @ptrCast(&state.params.zoom), 0.001, 2.0);
         _ = c.ImGui_SliderInt("particle visual size", @ptrCast(&state.params.particle_visual_size), 1, 100);
         _ = c.ImGui_SliderFloat("particle_z_shrinking_factor", @ptrCast(&state.params.particle_z_shrinking_factor), 0, 1);
         _ = c.ImGui_SliderFloat("particle_z_blur_factor", @ptrCast(&state.params.particle_z_blur_factor), 0, 2);

@@ -22,11 +22,11 @@
  };
 
  struct Params {
+     mat4 world_to_screen;
      float delta;
      uint steps_per_frame;
      uint particle_visual_size;
      uint grid_size;
-     float zoom;
      float particle_z_shrinking_factor;
      float particle_z_blur_factor;
      float friction;
@@ -53,13 +53,18 @@
      int seed;
  };
 
- struct Camera2DMeta {
+ struct Camera3DMeta {
+     uint did_change;
      uint did_move;
+     uint did_rotate;
  };
 
- struct Camera2D {
-     vec4 eye;
-     Camera2DMeta meta;
+ struct Camera3D {
+     vec3 eye;
+     vec3 fwd;
+     vec3 right;
+     vec3 up;
+     Camera3DMeta meta;
  };
 
  struct Frame {
@@ -79,7 +84,7 @@
  };
 
  struct Uniforms {
-     Camera2D camera;
+     Camera3D camera;
      Frame frame;
      Mouse mouse;
      Params params;
