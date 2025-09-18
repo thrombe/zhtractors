@@ -112,16 +112,7 @@ vec3 simone_attractor(vec3 pos) {
     return vec3(dx, dy, dz);
 }
 
-
-vec3 attractor(vec3 pos) {
-    vec3 a1 = thomas_attractor(pos);
-    vec3 a2 = chen_lee_attractor(pos);
-    a1 = normalize(a1);
-    a2 = normalize(a2);
-    a1 *= 0.01;
-    a2 *= 0.01;
-    return max(abs(a1), abs(a2)) * sign(a1);
-
+vec3 aizawa_attractor(vec3 pos) {
     float a, b, c, d, e, f;
     float x = pos.x, y = pos.y, z = pos.z;
     float dt = ubo.params.delta;
@@ -129,55 +120,109 @@ vec3 attractor(vec3 pos) {
     float dx, dy, dz, xn, yn, zn, scale;
     vec3 next;
 
-a = 5.51, b = 4.84;
-scale = 3.0;
-
-xn = sin(a * y) + cos(b * z);
-yn = sin(a * z) + cos(b * x);
-zn = sin(a * x) + cos(b * y);
-next = scale * vec3(xn, yn, zn);
-dx = (next.x - x) * dt;
-dy = (next.y - y) * dt;
-dz = (next.z - z) * dt;
-
-//     a = 0.80, b = 0.7, c = 0.6;
-// d = 3.5, e = 0.1;
-// dx = ((z-b) * x - d*y) * dt;
-// dy = (d * x + (z-b) * y) * dt;
-// dz = (c + a*z - ((z*z*z) / 3.0) - (x*x) + e * z * (x*x*x)) * dt;
-
-// a = 40.0, b = 1.833, c = 0.16;
-// d = 0.65, e = 55.0, f = 20.0;
-// dx = (a*(y-x) + c*x*z) * dt;
-// dy = (e*x + f*y - x*z) * dt;
-// dz = (b*z + x*y - d*x*x) * dt;
-
-// a = 3.0, b = 2.7, c = 1.7;
-// d = 2.0, e = 9.0;
-// dx = (y- a*x +b*y*z) * dt;
-// dy = (c*y -x*z +z) * dt;
-// dz = (d*x*y - e*z) * dt;
-
-// a = -5.5, b = 3.5, d = -1.0;
-// dx = y * dt;
-// dy = z * dt;
-// dz = (-a*x -b*y -z + (d * (pow(x, 3.0)))) * dt;
+    a = 0.80, b = 0.7, c = 0.6;
+    d = 3.5, e = 0.1;
+    dx = ((z-b) * x - d*y) * dt;
+    dy = (d * x + (z-b) * y) * dt;
+    dz = (c + a*z - ((z*z*z) / 3.0) - (x*x) + e * z * (x*x*x)) * dt;
 
     return vec3(dx, dy, dz);
 }
 
-// vec3 attractor(vec3 p) {
-//     float dt    = 0.0001;    // Time step
-//     float sigma = 10.0;
-//     float rho   = 28.0;
-//     float beta  = 8.0 / 3.0;
+// might need a high step count
+vec3 dadras_attractor(vec3 pos) {
+    float a, b, c, d, e, f;
+    float x = pos.x, y = pos.y, z = pos.z;
+    float dt = ubo.params.delta;
+ 
+    float dx, dy, dz, xn, yn, zn;
+    vec3 next;
 
-//     float dx = sigma * (p.y - p.x);
-//     float dy = p.x * (rho - p.z) - p.y;
-//     float dz = p.x * p.y - beta * p.z;
+    a = 3.0, b = 2.7, c = 1.7;
+    d = 2.0, e = 9.0;
 
-//     return vec3(dx, dy, dz) * dt;
-// }
+    dx = (y- a*x +b*y*z) * dt;
+    dy = (c*y -x*z +z) * dt;
+    dz = (d*x*y - e*z) * dt;
+    
+    vec3 dp = vec3(dx, dy, dz);
+    return dp;
+}
+
+vec3 dequan_li_attractor(vec3 pos) {
+    f32 scale = 0.04;
+    pos = pos / scale;
+
+    float a, b, c, d, e, f;
+    float x = pos.x, y = pos.y, z = pos.z;
+    float dt = ubo.params.delta;
+ 
+    float dx, dy, dz, xn, yn, zn;
+    vec3 next;
+
+    a = 40.0, b = 1.833, c = 0.16;
+    d = 0.65, e = 55.0, f = 20.0;
+    dx = (a*(y-x) + c*x*z) * dt;
+    dy = (e*x + f*y - x*z) * dt;
+    dz = (b*z + x*y - d*x*x) * dt;
+    vec3 dp = vec3(dx, dy, dz);
+    dp = dp * 0.001;
+
+    return dp;
+}
+
+vec3 arneodo_attractor(vec3 pos) {
+    float a, b, c, d, e, f;
+    float x = pos.x, y = pos.y, z = pos.z;
+    float dt = ubo.params.delta;
+ 
+    float dx, dy, dz, xn, yn, zn;
+    vec3 next;
+
+    a = -5.5, b = 3.5, d = -1.0;
+    dx = y * dt;
+    dy = z * dt;
+    dz = (-a*x -b*y -z + (d * (pow(x, 3.0)))) * dt;
+    vec3 dp = vec3(dx, dy, dz);
+
+    return dp;
+}
+
+vec3 three_scroll_attractor(vec3 pos) {
+    f32 scale = 0.06;
+    pos = pos / scale;
+
+    float a, b, c, d, e, f;
+    float x = pos.x, y = pos.y, z = pos.z;
+    float dt = ubo.params.delta * 0.4;
+ 
+    float dx, dy, dz, xn, yn, zn;
+    vec3 next;
+
+    a = 40., b = 0.833, c = 0.5;
+    d = 0.65, e = 20.0;
+
+    dx = (a * ( y - x ) + c * x * z) * dt;
+    dy = (e * y - x * z) * dt;
+    dz = (b * z + x * y - d * x * x) * dt;
+
+    vec3 dp = vec3(dx, dy, dz);
+    dp = dp * 0.03;
+
+    return dp;
+}
+
+// https://blog.shashanktomar.com/posts/strange-attractors
+vec3 attractor(vec3 pos) {
+    vec3 a1 = thomas_attractor(pos);
+    return a1;
+    // vec3 a2 = chen_lee_attractor(pos);
+    // a1 = normalize(a1);
+    // a2 = normalize(a2);
+    // a1 *= 0.01;
+    // a2 *= 0.01;
+    // return max(abs(a1), abs(a2)) * sign(a1);
+}
 
 #ifdef SPAWN_PARTICLES_PASS
     layout (local_size_x = 8, local_size_y = 8) in;
@@ -382,13 +427,6 @@ dz = (next.z - z) * dt;
         float checker = mod(floor(rounded.x) + floor(rounded.y), 2.0);
 
         vec3 color = mix(vec3(0.01, 0.01, 0.01), vec3(0.05, 0.05, 0.05), checker);
-
-        // debug renderr `particle_bins`
-        // ivec2 pos = ivec2(int(coord.x), int(coord.y) + 3);
-        // int index = pos.y * ubo.frame.width + pos.x;
-        // if (ubo.params.bin_buf_size > index && index >= 0) {
-        //     color = vec3(float(particle_bins[index] > ubo.params.particle_count * mod(ubo.frame.time, 1)));
-        // }
 
         // set bad_flag to 1 for debugging
         if (state.bad_flag > 0) {
