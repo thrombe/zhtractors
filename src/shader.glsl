@@ -289,6 +289,7 @@ vec3 attractor(vec3 pos) {
             }
         }
 
+        // position of the particle from a ray starting 100 units in front of cam
         vec3 v = p.pos - (ubo.camera.eye + ubo.camera.fwd * 100.0);
         f32 t = dot(v, ubo.camera.fwd);
         vec3 proj = t * ubo.camera.fwd;
@@ -299,7 +300,8 @@ vec3 attractor(vec3 pos) {
         } else {
             diff = length(rej);
         }
-        diff /= 100.0;
+
+        diff /= 40.0;
         vec3 sign = vec3(1.0);
         vec3 offset = vec3(random(), random(), random());
         if (diff < 0.01 * random()) {
@@ -314,7 +316,6 @@ vec3 attractor(vec3 pos) {
             p.vel -= offset * pforce * ubo.params.delta;
         }
         p.pos += p.vel * ubo.params.delta;
-        // p.vel = normalize(mouse - p.pos) * 100.0;
 
         // position wrapping
         // p.pos += world * vec3(lessThan(p.pos, vec3(0)));
@@ -398,6 +399,12 @@ vec3 attractor(vec3 pos) {
         float checker = mod(floor(rounded.x) + floor(rounded.y), 2.0);
 
         vec3 color = mix(vec3(0.01, 0.01, 0.01), vec3(0.05, 0.05, 0.05), checker);
+
+        f32 dcen = length(gl_FragCoord.xy - wres/2.0);
+        dcen /= 3.0;
+        if (dcen < 1.0) {
+            color = mix(color, vec3(0.6), 1.0 - smoothstep(0.6, 1, dcen));
+        }
 
         // set bad_flag to 1 for debugging
         if (state.bad_flag > 0) {
