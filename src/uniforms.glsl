@@ -28,7 +28,7 @@
      float yaw;
      float delta;
      uint steps_per_frame;
-     uint particle_visual_size;
+     float particle_visual_size;
      uint grid_size;
      float particle_z_shrinking_factor;
      float particle_z_blur_factor;

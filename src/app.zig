@@ -439,7 +439,7 @@ pub const ResourceManager = struct {
             yaw: f32 = 0,
             delta: f32 = 0,
             steps_per_frame: u32 = 1,
-            particle_visual_size: u32 = 16,
+            particle_visual_size: f32 = 16,
             grid_size: u32 = 32,
             particle_z_shrinking_factor: f32 = 0.7,
             particle_z_blur_factor: f32 = 0.27,
@@ -1210,7 +1210,7 @@ pub const GuiState = struct {
 
         _ = c.ImGui_SliderInt("FPS cap", @ptrCast(&state.fps_cap), 5, 500);
         reset = c.ImGui_SliderInt("spawn count", @ptrCast(&state.spawn_count), 0, 10000) or reset;
-        _ = c.ImGui_SliderInt("particle visual size", @ptrCast(&state.params.particle_visual_size), 1, 100);
+        _ = c.ImGui_SliderFloat("particle visual size", @ptrCast(&state.params.particle_visual_size), 0.01, 200);
         _ = c.ImGui_SliderFloat("particle_z_shrinking_factor", @ptrCast(&state.params.particle_z_shrinking_factor), 0, 1);
         _ = c.ImGui_SliderFloat("particle_z_blur_factor", @ptrCast(&state.params.particle_z_blur_factor), 0, 2);
         _ = c.ImGui_SliderInt("particles type count", @ptrCast(&state.particle_type_count), 1, cast(i32, state.max_particle_type_count));
