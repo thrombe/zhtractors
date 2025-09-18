@@ -289,15 +289,23 @@ vec3 attractor(vec3 pos) {
             }
         }
 
-        vec3 gravity = ubo.camera.eye + ubo.camera.fwd * 50.0;
-        vec3 diff = gravity - p.pos;
-        diff /= 1000.0;
+        vec3 v = p.pos - (ubo.camera.eye + ubo.camera.fwd * 100.0);
+        f32 t = dot(v, ubo.camera.fwd);
+        vec3 proj = t * ubo.camera.fwd;
+        vec3 rej = v - proj;
+        f32 diff;
+        if (t < 0) {
+            diff = length(v);
+        } else {
+            diff = length(rej);
+        }
+        diff /= 100.0;
         vec3 sign = vec3(1.0);
         vec3 offset = vec3(random(), random(), random());
-        if (dot(diff, diff) < 0.01 * random()) {
+        if (diff < 0.01 * random()) {
             sign *= -1.0;
         }
-        vec3 pforce = 100.0 * normalize(diff)/max(dot(diff, diff), 0.1);
+        vec3 pforce = - 100.0 * rej/max(diff * diff, 0.1);
         p.vel *= ubo.params.friction;
         if (ubo.mouse.left == 1) {
             p.vel += sign * offset * pforce * ubo.params.delta;
@@ -321,16 +329,6 @@ vec3 attractor(vec3 pos) {
 
         f32 scale = 100.0;
         p.pos += attractor(p.pos/scale) * scale;
-
-        if (id == 0) {
-            if (ubo.mouse.left + ubo.mouse.right != 0) {
-                p.pos = ubo.camera.eye + ubo.camera.fwd * 1000.0;
-                p.scale = 3.0;
-            } else {
-                p.pos = vec3(1000000);
-                p.scale = 0.0;
-            }
-        }
 
         particles[id] = p;
     }
