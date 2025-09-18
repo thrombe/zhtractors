@@ -281,6 +281,7 @@ vec3 attractor(vec3 pos) {
             }
             if (ubo.params.randomize_particle_attrs != 0) {
                 vec3 world = vec3(float(ubo.params.world_size_x), float(ubo.params.world_size_y), float(ubo.params.world_size_z));
+                p.scale = random();
                 p.pos = (vec3(random(), random(), random()) - 0.5) * vec3(1000.0);
                 p.vel = (vec3(random(), random(), random()) - 0.5) * 2000;
             }
@@ -357,30 +358,12 @@ vec3 attractor(vec3 pos) {
         ParticleType t = particle_types[p.type_index];
         vec2 vpos = quad_verts[vert_index].xy;
 
-        // f32 time = ubo.frame.time * 0.1;
-        // p.pos = vec3(p.pos.x * cos(time) - p.pos.z * sin(time), p.pos.y, p.pos.x * sin(time) + p.pos.z * cos(time));
-
         float particle_size = t.particle_scale * ubo.params.particle_visual_size;
-        vec2 wres = vec2(ubo.frame.width, ubo.frame.height);
+        vpos = vpos * particle_size * (p.scale + 0.4);
+        vec4 pos = ubo.params.world_to_screen * vec4(p.pos + ubo.camera.right * vpos.x + ubo.camera.up * vpos.y - ubo.camera.eye.xyz, 1.0);
 
-        z_factor = abs(p.pos.z - ubo.params.world_size_z * 0.5) / max(ubo.params.world_size_z * 0.5, 1);
-        f32 z_shrink = (1.0 - ubo.params.particle_z_shrinking_factor) + z_factor * ubo.params.particle_z_shrinking_factor;
-        z_shrink = clamp(z_shrink, 0, 1);
-
-        // TODO: fix zfactor and zshrink
-        z_factor = 0.0;
-        // z_shrink = 1.0;
-
-        // TODO: 3d camera rotation
-        vec2 pos = p.pos.xy + ubo.camera.eye.xy - vec2(float(ubo.params.world_size_x), float(ubo.params.world_size_y)) * 0.5;
-        pos += vpos * 0.5 * particle_size * z_shrink;
-        pos /= wres;
-        pos *= zoom;
-        pos *= 2.0;
-        gl_Position = vec4(pos, 0.0, 1.0);
-
-        vpos = vpos * particle_size;
-        gl_Position = ubo.params.world_to_screen * vec4(p.pos + ubo.camera.right * vpos.x + ubo.camera.up * vpos.y - ubo.camera.eye.xyz, 1.0);
+        z_factor = clamp(pos.z / pos.w - 0.3, 0.0, 1.0);
+        gl_Position = pos;
 
         // vcolor = vec4(0.5, 0.5, 0.5, 1.0);
         vcolor = t.color;
@@ -415,13 +398,11 @@ vec3 attractor(vec3 pos) {
     layout(location = 0) out vec4 fcolor;
     void main() {
         float grid_size = ubo.params.grid_size;
-        vec2 eye = ubo.camera.eye.xy;
         vec2 wres = vec2(ubo.frame.width, ubo.frame.height);
 
         vec2 coord = gl_FragCoord.xy;
         coord -= wres / 2.0;
         coord /= zoom;
-        coord -= eye;
         coord /= grid_size;
 
         // TODO: do a starry shader instead of a grid

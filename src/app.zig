@@ -412,6 +412,7 @@ pub const ResourceManager = struct {
     pub const Particle = struct {
         pos: math.Vec3,
         vel: math.Vec3,
+        scale: f32,
         type_index: u32,
         age: f32,
         exposure: f32,
@@ -434,6 +435,8 @@ pub const ResourceManager = struct {
 
         const Params = struct {
             world_to_screen: math.Mat4x4,
+            pitch: f32 = 0,
+            yaw: f32 = 0,
             delta: f32 = 0,
             steps_per_frame: u32 = 1,
             particle_visual_size: u32 = 16,
@@ -476,6 +479,8 @@ pub const ResourceManager = struct {
                 .pitch = state.controller.pitch,
                 .yaw = state.controller.yaw,
             });
+            state.params.pitch = state.controller.pitch;
+            state.params.yaw = state.controller.yaw;
             state.params.delta = state.ticker.scaled.delta / @as(f32, @floatFromInt(state.steps_per_frame));
             state.params.steps_per_frame = state.steps_per_frame;
 

@@ -11,6 +11,8 @@
 #define i32 int
 #define f32 float
 
+#define PI 3.14159265
+
 uint rand_xorshift(uint state) {
     state ^= (state << 13);
     state ^= (state >> 17);

@@ -16,6 +16,7 @@
  struct Particle {
      vec3 pos;
      vec3 vel;
+     float scale;
      uint type_index;
      float age;
      float exposure;
@@ -23,6 +24,8 @@
 
  struct Params {
      mat4 world_to_screen;
+     float pitch;
+     float yaw;
      float delta;
      uint steps_per_frame;
      uint particle_visual_size;
