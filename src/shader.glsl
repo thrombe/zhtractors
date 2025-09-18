@@ -217,6 +217,7 @@ vec3 three_scroll_attractor(vec3 pos) {
 // https://blog.shashanktomar.com/posts/strange-attractors
 vec3 attractor(vec3 pos) {
     return thomas_attractor(pos);
+    // return aizawa_attractor(pos);
     // vec3 a1 = thomas_attractor(pos);
     // return a1;
     // vec3 a2 = chen_lee_attractor(pos);
@@ -276,12 +277,18 @@ vec3 attractor(vec3 pos) {
         //
         // randomize particles
         {
-            if (ubo.params.randomize_particle_types != 0) {
+            u32 killed = 0;
+
+            if (random() < 0.003 * ubo.params.delta * ubo.params.entropy) {
+                killed = 1;
+            }
+
+            if (ubo.params.randomize_particle_types != 0 || killed == 1) {
                 p.type_index = randuint() % ubo.params.particle_type_count;
                 p.age = 0.0;
                 p.exposure = 0.0;
             }
-            if (ubo.params.randomize_particle_attrs != 0) {
+            if (ubo.params.randomize_particle_attrs != 0 || killed == 1) {
                 vec3 world = vec3(float(ubo.params.world_size_x), float(ubo.params.world_size_y), float(ubo.params.world_size_z));
                 p.scale = random();
                 p.pos = (vec3(random(), random(), random()) - 0.5) * vec3(1000.0);

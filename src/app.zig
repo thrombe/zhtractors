@@ -433,6 +433,15 @@ pub const ResourceManager = struct {
         mouse: utils_mod.ShaderUtils.Mouse,
         params: Params,
 
+        // TODO: remove redundant ones
+        // TODO: add useful ones
+        //  - mouse sensitivity
+        //  - movement speed
+        //  - mouse attraction factor
+        //  - mouse attraction falloff
+        //  - mouse min attraction radius
+        // TODO:
+        //  - fix world size. also spawn particles in that world
         const Params = struct {
             world_to_screen: math.Mat4x4,
             pitch: f32 = 0,
@@ -1091,6 +1100,7 @@ pub const AppState = struct {
             // }
 
             if (mouse.left.just_pressed() and !self.focus) {
+                mouse.left = .none;
                 self.focus = true;
                 imgui_io.ConfigFlags |= c.ImGuiConfigFlags_NoMouse;
                 window.hide_cursor(true);
