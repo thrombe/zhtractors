@@ -279,6 +279,16 @@ vec3 attractor(vec3 pos) {
         {
             u32 killed = 0;
 
+            f32 vel = length(p.vel);
+            f32 entropy = 0.0;
+            entropy += float(vel < 10.0) * 0.001 + float(vel > 20.0) * 0.001;
+            entropy += sqrt(p.exposure) * 0.0001;
+            entropy += float(p.age > 1000.0) * 0.0003;
+            entropy *= ubo.params.entropy;
+
+            // framerate and step independent entropy
+            entropy *= ubo.params.delta * 100.0;
+
             if (random() < 0.003 * ubo.params.delta * ubo.params.entropy) {
                 killed = 1;
             }
@@ -330,12 +340,13 @@ vec3 attractor(vec3 pos) {
         // prevents position blow up
         // p.pos = clamp(p.pos, vec3(0.0), world);
 
-        p.age += 100.0 * ubo.params.delta;
-        // TODO: any way to get exposure?
-        // p.exposure += _ * ubo.params.delta;
-
         f32 scale = 100.0;
-        p.pos += attractor(p.pos/scale) * scale;
+        vec3 dp = attractor(p.pos/scale) * scale;
+        p.pos += dp;
+        p.vel += dp * ubo.params.delta * ubo.params.friction;
+
+        p.age += 100.0 * ubo.params.delta;
+        p.exposure += (1.0/max(length(dp), 0.001)) * 100.0 * ubo.params.delta;
 
         particles[id] = p;
     }

@@ -440,6 +440,7 @@ pub const ResourceManager = struct {
         //  - mouse attraction factor
         //  - mouse attraction falloff
         //  - mouse min attraction radius
+        //  - attractor scale
         // TODO:
         //  - fix world size. also spawn particles in that world
         const Params = struct {
@@ -1163,7 +1164,7 @@ pub const GuiState = struct {
 
         _ = c.ImGui_SliderInt("FPS cap", @ptrCast(&state.fps_cap), 5, 500);
         reset = c.ImGui_SliderInt("spawn count", @ptrCast(&state.spawn_count), 0, 10000) or reset;
-        _ = c.ImGui_SliderFloat("particle visual size", @ptrCast(&state.params.particle_visual_size), 0.01, 200);
+        _ = c.ImGui_SliderFloat("particle visual size", @ptrCast(&state.params.particle_visual_size), 0.0001, 50);
         _ = c.ImGui_SliderFloat("particle_z_blur_factor", @ptrCast(&state.params.particle_z_blur_factor), 0, 2);
         _ = c.ImGui_SliderInt("particles type count", @ptrCast(&state.particle_type_count), 1, cast(i32, state.max_particle_type_count));
         _ = c.ImGui_SliderInt("grid size", @ptrCast(&state.params.grid_size), 1, 100);
