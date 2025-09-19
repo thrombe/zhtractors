@@ -216,8 +216,8 @@ vec3 three_scroll_attractor(vec3 pos) {
 
 // https://blog.shashanktomar.com/posts/strange-attractors
 vec3 attractor(vec3 pos) {
-    return thomas_attractor(pos);
-    // return aizawa_attractor(pos);
+    // return thomas_attractor(pos);
+    return aizawa_attractor(pos);
     // return chen_lee_attractor(pos);
     // return simone_attractor(pos);
     // return arneodo_attractor(pos);
@@ -337,7 +337,7 @@ vec3 attractor(vec3 pos) {
             p.vel -= offset * pforce * ubo.params.delta;
         }
 
-        f32 scale = 100.0;
+        f32 scale = 100.0 * ubo.params.scale;
         vec3 dp = attractor(p.pos/scale) * scale;
         // p.pos += dp;
         p.vel += (dp / max(ubo.params.delta, 0.0001)) * (1.0 - exp(-ubo.params.delta * ubo.params.attractor_inertia));

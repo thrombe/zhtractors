@@ -25,6 +25,7 @@
  struct Params {
      mat4 world_to_screen;
      float delta;
+     float scale;
      uint steps_per_frame;
      float particle_visual_size;
      uint grid_size;
