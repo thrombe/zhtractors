@@ -1045,16 +1045,13 @@ pub const AppState = struct {
             //     );
             // }
 
-            if (mouse.left.just_pressed() and !self.focus) {
-                mouse.left = .none;
+            if (mouse.middle.just_pressed() and !self.focus) {
                 self.focus = true;
                 imgui_io.ConfigFlags |= c.ImGuiConfigFlags_NoMouse;
                 window.hide_cursor(true);
-            }
-            if (kb.escape.just_pressed() and !self.focus) {
+            } else if (kb.escape.just_pressed() and !self.focus) {
                 window.queue_close();
-            }
-            if (kb.escape.just_pressed() and self.focus) {
+            } else if ((kb.escape.just_pressed() or mouse.middle.just_pressed()) and self.focus) {
                 self.focus = false;
                 imgui_io.ConfigFlags &= ~c.ImGuiConfigFlags_NoMouse;
                 window.hide_cursor(false);
