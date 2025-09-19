@@ -252,7 +252,7 @@ vec3 attractor(vec3 pos) {
 
         int index = atomicAdd(state.particle_count, 1);
         Particle p;
-        p.pos = vec3(random(), random(), random()) * vec3(float(ubo.params.world_size_x), float(ubo.params.world_size_y), float(ubo.params.world_size_z));
+        p.pos = vec3(random(), random(), random()) * 1200;
         p.vel = 50.0 * (vec3(random(), random(), random()) - 0.5) * 2.0;
         p.type_index = clamp(int(random() * ubo.params.particle_type_count), 0, ubo.params.particle_type_count - 1);
         particles[index] = p;
@@ -289,7 +289,6 @@ vec3 attractor(vec3 pos) {
                 p.exposure = 0.0;
             }
             if (ubo.params.randomize_particle_attrs != 0 || killed == 1) {
-                vec3 world = vec3(float(ubo.params.world_size_x), float(ubo.params.world_size_y), float(ubo.params.world_size_z));
                 p.scale = random();
                 p.pos = (vec3(random(), random(), random()) - 0.5) * vec3(1000.0);
                 p.vel = (vec3(random(), random(), random()) - 0.5) * 2000;
@@ -314,7 +313,7 @@ vec3 attractor(vec3 pos) {
         if (diff < 0.01 * random()) {
             sign *= -1.0;
         }
-        vec3 pforce = - 100.0 * rej/max(diff * diff, 0.1);
+        vec3 pforce = - ubo.params.attraction_strength_scale * rej/max(diff * diff, 0.1);
         p.vel *= ubo.params.friction;
         if (ubo.mouse.left == 1) {
             p.vel += sign * offset * pforce * ubo.params.delta;

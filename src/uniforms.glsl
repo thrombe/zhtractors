@@ -24,32 +24,19 @@
 
  struct Params {
      mat4 world_to_screen;
-     float pitch;
-     float yaw;
      float delta;
      uint steps_per_frame;
      float particle_visual_size;
      uint grid_size;
-     float particle_z_shrinking_factor;
      float particle_z_blur_factor;
      float friction;
      float entropy;
-     float collision_strength_scale;
      float attraction_strength_scale;
-     float max_attraction_factor;
      uint randomize_particle_types;
      uint randomize_particle_attrs;
      uint particle_type_count;
      uint particle_count;
      uint spawn_count;
-     int bin_size;
-     int bin_buf_size;
-     int bin_buf_size_x;
-     int bin_buf_size_y;
-     int bin_buf_size_z;
-     int world_size_x;
-     int world_size_y;
-     int world_size_z;
  };
 
  struct PushConstants {

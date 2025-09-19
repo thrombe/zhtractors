@@ -433,7 +433,6 @@ pub const ResourceManager = struct {
         mouse: utils_mod.ShaderUtils.Mouse,
         params: Params,
 
-        // TODO: remove redundant ones
         // TODO: add useful ones
         //  - mouse sensitivity
         //  - movement speed
@@ -444,32 +443,20 @@ pub const ResourceManager = struct {
         //  - fix world size. also spawn particles in that world
         const Params = struct {
             world_to_screen: math.Mat4x4,
-            pitch: f32 = 0,
-            yaw: f32 = 0,
             delta: f32 = 0,
             steps_per_frame: u32 = 1,
             particle_visual_size: f32 = 16,
             grid_size: u32 = 32,
-            particle_z_shrinking_factor: f32 = 0.7,
             particle_z_blur_factor: f32 = 0.27,
             friction: f32,
             entropy: f32 = 0.1,
-            collision_strength_scale: f32 = 96,
-            attraction_strength_scale: f32 = 27,
-            max_attraction_factor: f32 = 27,
+            attraction_strength_scale: f32 = 100,
+
             randomize_particle_types: u32 = 0,
             randomize_particle_attrs: u32 = 0,
             particle_type_count: u32 = 0,
             particle_count: u32 = 0,
             spawn_count: u32,
-            bin_size: i32,
-            bin_buf_size: i32,
-            bin_buf_size_x: i32,
-            bin_buf_size_y: i32,
-            bin_buf_size_z: i32,
-            world_size_x: i32,
-            world_size_y: i32,
-            world_size_z: i32,
         };
 
         pub const shader_type = ShaderUtils.shader_type(@This());
@@ -488,8 +475,6 @@ pub const ResourceManager = struct {
                 .pitch = state.controller.pitch,
                 .yaw = state.controller.yaw,
             });
-            state.params.pitch = state.controller.pitch;
-            state.params.yaw = state.controller.yaw;
             state.params.delta = state.ticker.scaled.delta / @as(f32, @floatFromInt(state.steps_per_frame));
             state.params.steps_per_frame = state.steps_per_frame;
 
@@ -503,33 +488,6 @@ pub const ResourceManager = struct {
             state.params.particle_type_count = state.particle_type_count;
             state.params.randomize_particle_types = @intCast(@intFromBool(state.randomize.particle_types));
             state.params.randomize_particle_attrs = @intCast(@intFromBool(state.randomize.particle_attrs));
-
-            // cap requested world size's z coord.
-            state.requested_world_size.z = @min(state.requested_world_size.z, state.bin_size * state.bin_buf_size_z_max);
-
-            state.params.bin_size = state.bin_size;
-            state.params.bin_buf_size_x = @divFloor(state.requested_world_size.x, state.bin_size);
-            state.params.bin_buf_size_y = @divFloor(state.requested_world_size.y, state.bin_size);
-            state.params.bin_buf_size_z = @divFloor(state.requested_world_size.z, state.bin_size);
-
-            // allow z to be 0
-            state.params.world_size_x = state.params.bin_buf_size_x * state.bin_size;
-            state.params.world_size_y = state.params.bin_buf_size_y * state.bin_size;
-            state.params.world_size_z = state.params.bin_buf_size_z * state.bin_size;
-
-            if (state.params.world_size_x == 0) {
-                state.params.world_size_x = state.requested_world_size.x;
-            }
-            if (state.params.world_size_y == 0) {
-                state.params.world_size_y = state.requested_world_size.y;
-            }
-            if (state.params.world_size_z == 0) {
-                state.params.world_size_z = state.requested_world_size.z;
-            }
-
-            // bin_buf_size_. > 0
-            state.params.bin_buf_size_z = @max(state.params.bin_buf_size_z, 1);
-            state.params.bin_buf_size = state.params.bin_buf_size_x * state.params.bin_buf_size_y * state.params.bin_buf_size_z;
 
             // TODO: don't fuse every frame man
             _ = state.cmdbuf_fuse.fuse();
@@ -938,23 +896,10 @@ pub const AppState = struct {
     particle_type_count: u32 = 5,
     spawn_count: u32 = 15000,
     friction: f32 = 2.0,
-    bin_size: i32 = 62,
-    bin_buf_size_z_max: i32 = 5,
-    requested_world_size: math.Vec3T(i32) = .{ .x = 1800, .y = 1200, .z = 13 },
     params: ResourceManager.Uniforms.Params = .{
         .world_to_screen = std.mem.zeroes(math.Mat4x4),
         .spawn_count = 0,
         .friction = 0,
-
-        .bin_size = 0,
-        .bin_buf_size = 0,
-        .bin_buf_size_x = 0,
-        .bin_buf_size_y = 0,
-        .bin_buf_size_z = 0,
-
-        .world_size_x = 0,
-        .world_size_y = 0,
-        .world_size_z = 0,
     },
     camera: math.Camera = .init(
         math.Camera.constants.basis.vulkan,
@@ -1221,17 +1166,12 @@ pub const GuiState = struct {
         _ = c.ImGui_SliderInt("FPS cap", @ptrCast(&state.fps_cap), 5, 500);
         reset = c.ImGui_SliderInt("spawn count", @ptrCast(&state.spawn_count), 0, 10000) or reset;
         _ = c.ImGui_SliderFloat("particle visual size", @ptrCast(&state.params.particle_visual_size), 0.01, 200);
-        _ = c.ImGui_SliderFloat("particle_z_shrinking_factor", @ptrCast(&state.params.particle_z_shrinking_factor), 0, 1);
         _ = c.ImGui_SliderFloat("particle_z_blur_factor", @ptrCast(&state.params.particle_z_blur_factor), 0, 2);
         _ = c.ImGui_SliderInt("particles type count", @ptrCast(&state.particle_type_count), 1, cast(i32, state.max_particle_type_count));
         _ = c.ImGui_SliderInt("grid size", @ptrCast(&state.params.grid_size), 1, 100);
-        _ = c.ImGui_SliderInt("bin size", @ptrCast(&state.bin_size), 4, 200);
-        _ = c.ImGui_SliderInt("bin buf size z", @ptrCast(&state.requested_world_size.z), 0, state.bin_size * state.bin_buf_size_z_max);
         reset = c.ImGui_SliderFloat("friction", @ptrCast(&state.friction), 0.0, 5.0) or reset;
         _ = c.ImGui_SliderFloat("entropy", @ptrCast(&state.params.entropy), 0.0, 1.0);
-        _ = c.ImGui_SliderFloat("collision_strength_scale", @ptrCast(&state.params.collision_strength_scale), 0, 200);
         _ = c.ImGui_SliderFloat("attraction_strength_scale", @ptrCast(&state.params.attraction_strength_scale), 0, 200);
-        _ = c.ImGui_SliderFloat("max_attraction_factor", @ptrCast(&state.params.max_attraction_factor), 1, 200);
 
         var sim_speed = state.ticker.speed.perc;
         if (c.ImGui_SliderFloat("simulation_speed", @ptrCast(&sim_speed), 0.0, 5.0)) {
