@@ -289,7 +289,7 @@ pub const ResourceManager = struct {
         const device = &ctx.device;
 
         var uniform_buf = try Buffer.new_initialized(ctx, .{
-            .size = @sizeOf(Uniforms.shader_type),
+            .size = 1,
             .usage = .{ .uniform_buffer_bit = true },
             .memory_type = .{
                 // https://community.khronos.org/t/memory-type-practice-for-an-mvp-uniform-buffer/109458/7
@@ -308,14 +308,15 @@ pub const ResourceManager = struct {
         errdefer allocator.free(particle_types);
         @memset(particle_types, std.mem.zeroes(ParticleType));
 
-        var particle_types_buf = try Buffer.new_from_slice(ctx, .{
+        var particle_types_buf = try Buffer.new_initialized(ctx, .{
+            .size = particle_types.len,
             .usage = .{ .storage_buffer_bit = true },
             .memory_type = .{ .device_local_bit = true, .host_visible_bit = true, .host_coherent_bit = true },
-        }, particle_types, pool);
+        }, std.mem.zeroes(ParticleType.shader_type), pool);
         errdefer particle_types_buf.deinit(device);
 
         var particles = try Buffer.new(ctx, .{
-            .size = @sizeOf(Particle) * v.num_particles,
+            .size = @sizeOf(Particle.shader_type) * v.num_particles,
             .usage = .{ .storage_buffer_bit = true },
         });
         errdefer particles.deinit(device);
