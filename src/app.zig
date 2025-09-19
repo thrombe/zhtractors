@@ -450,6 +450,7 @@ pub const ResourceManager = struct {
             particle_visual_size: f32 = 16,
             grid_size: u32 = 32,
             particle_z_blur_factor: f32 = 0.27,
+            attractor_inertia: f32 = 0.67,
             friction: f32,
             entropy: f32 = 0.1,
             attraction_strength_scale: f32 = 100,
@@ -897,7 +898,7 @@ pub const AppState = struct {
     max_particle_type_count: u32 = 10,
     particle_type_count: u32 = 5,
     spawn_count: u32 = 15000,
-    friction: f32 = 2.0,
+    friction: f32 = 2.86,
     params: ResourceManager.Uniforms.Params = .{
         .world_to_screen = std.mem.zeroes(math.Mat4x4),
         .spawn_count = 0,
@@ -1168,12 +1169,13 @@ pub const GuiState = struct {
         _ = c.ImGui_SliderFloat("particle_z_blur_factor", @ptrCast(&state.params.particle_z_blur_factor), 0, 2);
         _ = c.ImGui_SliderInt("particles type count", @ptrCast(&state.particle_type_count), 1, cast(i32, state.max_particle_type_count));
         _ = c.ImGui_SliderInt("grid size", @ptrCast(&state.params.grid_size), 1, 100);
-        reset = c.ImGui_SliderFloat("friction", @ptrCast(&state.friction), 0.0, 5.0) or reset;
+        _ = c.ImGui_SliderFloat("attractor_inertia", @ptrCast(&state.params.attractor_inertia), 0.0, 5.0);
+        _ = c.ImGui_SliderFloat("friction", @ptrCast(&state.friction), 0.0, 10.0);
         _ = c.ImGui_SliderFloat("entropy", @ptrCast(&state.params.entropy), 0.0, 1.0);
         _ = c.ImGui_SliderFloat("attraction_strength_scale", @ptrCast(&state.params.attraction_strength_scale), 0, 200);
 
         var sim_speed = state.ticker.speed.perc;
-        if (c.ImGui_SliderFloat("simulation_speed", @ptrCast(&sim_speed), 0.0, 5.0)) {
+        if (c.ImGui_SliderFloat("simulation_speed", @ptrCast(&sim_speed), 0.0, 20.0)) {
             state.ticker.set_speed(sim_speed);
             state.ticker.drop_pending_simtime();
         }

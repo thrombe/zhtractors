@@ -68,7 +68,7 @@ vec3 thomas_attractor(vec3 pos) {
     float dx, dy, dz;
 
     // a = 0.00 + ubo.frame.time * 0.0009;
-    a = 0.16;
+    a = 0.13;
     dx = (-a*x + sin(y)) * dt;
     dy = (-a*y + sin(z)) * dt;
     dz = (-a*z + sin(x)) * dt;
@@ -157,7 +157,7 @@ vec3 dequan_li_attractor(vec3 pos) {
 
     float a, b, c, d, e, f;
     float x = pos.x, y = pos.y, z = pos.z;
-    float dt = ubo.params.delta;
+    float dt = ubo.params.delta / 5.0;
  
     float dx, dy, dz, xn, yn, zn;
     vec3 next;
@@ -218,6 +218,10 @@ vec3 three_scroll_attractor(vec3 pos) {
 vec3 attractor(vec3 pos) {
     return thomas_attractor(pos);
     // return aizawa_attractor(pos);
+    // return chen_lee_attractor(pos);
+    // return simone_attractor(pos);
+    // return arneodo_attractor(pos);
+    // return dequan_li_attractor(pos);
     // vec3 a1 = thomas_attractor(pos);
     // return a1;
     // vec3 a2 = chen_lee_attractor(pos);
@@ -331,6 +335,12 @@ vec3 attractor(vec3 pos) {
         if (ubo.mouse.right == 1) {
             p.vel -= offset * pforce * ubo.params.delta;
         }
+
+        f32 scale = 100.0;
+        vec3 dp = attractor(p.pos/scale) * scale;
+        // p.pos += dp;
+        p.vel += (dp / max(ubo.params.delta, 0.0001)) * (1.0 - exp(-ubo.params.delta * ubo.params.attractor_inertia));
+
         p.pos += p.vel * ubo.params.delta;
 
         // position wrapping
@@ -339,11 +349,6 @@ vec3 attractor(vec3 pos) {
 
         // prevents position blow up
         // p.pos = clamp(p.pos, vec3(0.0), world);
-
-        f32 scale = 100.0;
-        vec3 dp = attractor(p.pos/scale) * scale;
-        p.pos += dp;
-        p.vel += dp * ubo.params.delta * ubo.params.friction;
 
         p.age += 100.0 * ubo.params.delta;
         p.exposure += (1.0/max(length(dp), 0.001)) * 100.0 * ubo.params.delta;

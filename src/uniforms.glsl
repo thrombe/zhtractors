@@ -29,6 +29,7 @@
      float particle_visual_size;
      uint grid_size;
      float particle_z_blur_factor;
+     float attractor_inertia;
      float friction;
      float entropy;
      float attraction_strength_scale;
