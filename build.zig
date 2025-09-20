@@ -212,6 +212,8 @@ fn remotery_step(b: *std.Build, v: struct {
     optimize: std.builtin.OptimizeMode,
     alloc: std.mem.Allocator,
 }) !struct { lib: *std.Build.Step.Compile } {
+    const is_windows = v.target.result.os.tag == .windows;
+
     const remotery = b.addSharedLibrary(.{
         .name = "remotery",
         .target = v.target,
@@ -224,6 +226,14 @@ fn remotery_step(b: *std.Build, v: struct {
         "-DRMT_ENABLED=1",
         "-DRMT_USE_VULKAN=1",
     });
+
+    if (is_windows) {
+        try flags.append("-DRMT_DLL");
+        remotery.addIncludePath(b.path("./zig-out/vendor/include"));
+        remotery.addLibraryPath(b.path("./zig-out/vendor/lib"));
+        remotery.addLibraryPath(b.path("./zig-out/lib"));
+        remotery.addRPath(b.path("./zig-out/vendor/lib"));
+    }
 
     remotery.addIncludePath(v.remotery.path("lib"));
     remotery.addCSourceFiles(.{
@@ -343,7 +353,7 @@ fn tracy_step(b: *std.Build, v: struct {
     if (v.options.verbose) try flags.append("-DTRACY_VERBOSE");
     if (v.options.debuginfod) try flags.append("-DTRACY_DEBUGINFOD");
     if (v.options.debuginfod) tracy.linkSystemLibrary("libdebuginfod");
-    if (v.options.shared) try flags.append("-DDTRACY_EXPORTS");
+    if (v.options.shared) try flags.append("-DTRACY_EXPORTS");
     if (is_windows and v.options.shared) try flags.appendSlice(&.{
         "-DWINVER=0x0601",
         "-D_WIN32_WINNT=0x0601",
@@ -392,8 +402,6 @@ fn step(b: *std.Build, v: struct {
     jolt_dep: *std.Build.Dependency,
     stb_dep: *std.Build.Dependency,
     steamworks_dep: *std.Build.Dependency,
-    remotery: *std.Build.Step.Compile,
-    remotery_dep: *std.Build.Dependency,
     tracy: *std.Build.Step.Compile,
     tracy_dep: *std.Build.Dependency,
     tracy_boptions: *std.Build.Step.Options,
@@ -449,7 +457,7 @@ fn step(b: *std.Build, v: struct {
             compile_step.addIncludePath(v.imgui_dep.path("./backends"));
             compile_step.addIncludePath(v.jolt_dep.path("./"));
             compile_step.addIncludePath(v.stb_dep.path("./"));
-            compile_step.addIncludePath(v.remotery_dep.path("./lib"));
+            compile_step.addIncludePath(v.tracy_dep.path("./public"));
             compile_step.addIncludePath(b.path("./src"));
 
             compile_step.addIncludePath(v.steamworks_dep.path("./public"));
@@ -530,12 +538,10 @@ fn step(b: *std.Build, v: struct {
             if (is_windows) {
                 compile_step.addObjectFile(b.path("./zig-out/lib/cimgui.lib"));
                 compile_step.addObjectFile(b.path("./zig-out/lib/jolt.lib"));
-                compile_step.addObjectFile(b.path("./zig-out/lib/remotery.lib"));
                 compile_step.addObjectFile(b.path("./zig-out/lib/tracy.lib"));
             } else {
                 compile_step.addObjectFile(b.path("./zig-out/lib/libcimgui.so"));
                 compile_step.addObjectFile(b.path("./zig-out/lib/libjolt.so"));
-                compile_step.addObjectFile(b.path("./zig-out/lib/libremotery.so"));
                 compile_step.addObjectFile(b.path("./zig-out/lib/libtracy.so"));
             }
 
@@ -595,7 +601,6 @@ pub fn build(b: *std.Build) !void {
     const jolt = b.dependency("jolt", .{});
     const stb = b.dependency("stb", .{});
     const steamworks = b.dependency("steamworks", .{});
-    const remotery = b.dependency("remotery", .{});
     const tracy = b.dependency("tracy", .{});
 
     const vulkan = vulkan_step(b, .{
@@ -611,12 +616,6 @@ pub fn build(b: *std.Build) !void {
     });
     const libjolt = try jolt_step(b, .{
         .jolt = jolt,
-        .target = target,
-        .optimize = optimize,
-        .alloc = alloc,
-    });
-    const libremotery = try remotery_step(b, .{
-        .remotery = remotery,
         .target = target,
         .optimize = optimize,
         .alloc = alloc,
@@ -659,8 +658,6 @@ pub fn build(b: *std.Build) !void {
         .jolt_dep = jolt,
         .stb_dep = stb,
         .steamworks_dep = steamworks,
-        .remotery = libremotery.lib,
-        .remotery_dep = remotery,
         .tracy = libtracy.lib,
         .tracy_dep = tracy,
         .tracy_boptions = libtracy.boptions,
@@ -680,8 +677,6 @@ pub fn build(b: *std.Build) !void {
         .jolt_dep = jolt,
         .stb_dep = stb,
         .steamworks_dep = steamworks,
-        .remotery = libremotery.lib,
-        .remotery_dep = remotery,
         .tracy = libtracy.lib,
         .tracy_dep = tracy,
         .tracy_boptions = libtracy.boptions,
@@ -701,8 +696,6 @@ pub fn build(b: *std.Build) !void {
         .jolt_dep = jolt,
         .stb_dep = stb,
         .steamworks_dep = steamworks,
-        .remotery = libremotery.lib,
-        .remotery_dep = remotery,
         .tracy = libtracy.lib,
         .tracy_dep = tracy,
         .tracy_boptions = libtracy.boptions,
@@ -710,7 +703,6 @@ pub fn build(b: *std.Build) !void {
 
     compile_commands.step.dependOn(&libimgui.lib.step);
     compile_commands.step.dependOn(&libjolt.lib.step);
-    compile_commands.step.dependOn(&libremotery.lib.step);
     compile_commands.step.dependOn(&libtracy.lib.step);
     compile_commands.step.dependOn(&hotlib.step);
 
@@ -719,8 +711,6 @@ pub fn build(b: *std.Build) !void {
     build_libs_step.dependOn(&b.addInstallArtifact(libimgui.lib, .{}).step);
     build_libs_step.dependOn(&libjolt.lib.step);
     build_libs_step.dependOn(&b.addInstallArtifact(libjolt.lib, .{}).step);
-    build_libs_step.dependOn(&libremotery.lib.step);
-    build_libs_step.dependOn(&b.addInstallArtifact(libremotery.lib, .{}).step);
     build_libs_step.dependOn(&libtracy.lib.step);
     build_libs_step.dependOn(&b.addInstallArtifact(libtracy.lib, .{}).step);
     build_libs_step.dependOn(&hotlib.step);
