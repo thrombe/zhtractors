@@ -2223,3 +2223,87 @@ pub const Tracy = struct {
         }
     };
 };
+
+pub const StubTelemetry = struct {
+    pub fn init() !@This() {
+        return .{};
+    }
+
+    pub fn deinit(self: *@This()) void {
+        _ = self;
+    }
+
+    pub inline fn begin_sample(self: *@This(), comptime src: std.builtin.SourceLocation, comptime name: [:0]const u8) void {
+        _ = self;
+        _ = src;
+        _ = name;
+    }
+
+    pub inline fn end_sample(self: *@This()) void {
+        _ = self;
+    }
+
+    pub fn mark_frame(_: *@This()) !void {}
+
+    pub fn log(self: *@This(), msg: [:0]const u8) void {
+        _ = self;
+        _ = msg;
+    }
+
+    pub inline fn plot_config(name: [:0]const u8, config: PlotConfig) void {
+        _ = name;
+        _ = config;
+    }
+
+    pub inline fn plot(self: *@This(), name: [:0]const u8, value: anytype) void {
+        _ = self;
+        _ = name;
+        _ = value;
+    }
+
+    pub const PlotType = enum {
+        Number,
+        Memory,
+        Percentage,
+        Watt,
+    };
+
+    pub const PlotConfig = struct {
+        plot_type: PlotType,
+        step: bool,
+        fill: bool,
+        color: u32,
+    };
+
+    pub const ZoneOptions = struct {
+        active: bool = true,
+        name: ?[]const u8 = null,
+        color: ?u32 = null,
+    };
+
+    pub const ZoneContext = struct {
+        pub inline fn end(zone: ZoneContext) void {
+            _ = zone;
+        }
+
+        pub inline fn name(zone: ZoneContext, zone_name: []const u8) void {
+            _ = zone;
+            _ = zone_name;
+        }
+
+        pub inline fn text(zone: ZoneContext, zone_text: []const u8) void {
+            _ = zone;
+            _ = zone_text;
+        }
+
+        pub inline fn color(zone: ZoneContext, zone_color: u32) void {
+            _ = zone;
+            _ = zone_color;
+        }
+
+        pub inline fn value(zone: ZoneContext, zone_value: u64) void {
+            _ = zone;
+            _ = zone_value;
+        }
+    };
+};

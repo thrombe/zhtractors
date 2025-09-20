@@ -54,7 +54,7 @@ pub fn init(engine: *Engine) !@This() {
 
     const res = try engine.window.get_max_res();
 
-    var telemetry = try utils_mod.Tracy.init();
+    var telemetry = try Telemetry.init();
     errdefer telemetry.deinit();
 
     const cmd_pool = try device.createCommandPool(&.{
