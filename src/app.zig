@@ -434,14 +434,6 @@ pub const ResourceManager = struct {
         mouse: utils_mod.ShaderUtils.Mouse,
         params: Params,
 
-        // TODO: add useful ones
-        //  - mouse sensitivity
-        //  - movement speed
-        //  - mouse attraction factor
-        //  - mouse attraction falloff
-        //  - mouse min attraction radius
-        // TODO:
-        //  - fix world size. also spawn particles in that world
         const Params = struct {
             world_to_screen: math.Mat4x4,
             delta: f32 = 0,
@@ -454,6 +446,8 @@ pub const ResourceManager = struct {
             friction: f32,
             entropy: f32 = 0.1,
             attraction_strength_scale: f32 = 100,
+            attraction_radius: f32 = 40.0,
+            world_spawn_size: f32 = 1200.0,
 
             randomize_particle_types: u32 = 0,
             randomize_particle_attrs: u32 = 0,
@@ -1164,16 +1158,20 @@ pub const GuiState = struct {
         var reset = false;
 
         _ = c.ImGui_SliderInt("FPS cap", @ptrCast(&state.fps_cap), 5, 500);
+        _ = c.ImGui_SliderFloat("Sensitivity", &state.controller.sensitivity, 0.001, 2.0);
+        _ = c.ImGui_SliderFloat("Movement speed", &state.controller.speed, 1, 1000);
         reset = c.ImGui_SliderInt("spawn count", @ptrCast(&state.spawn_count), 0, 10000) or reset;
         _ = c.ImGui_SliderFloat("scale", @ptrCast(&state.params.scale), 0.01, 4);
         _ = c.ImGui_SliderFloat("particle visual size", @ptrCast(&state.params.particle_visual_size), 0.0001, 50);
         _ = c.ImGui_SliderFloat("particle_z_blur_factor", @ptrCast(&state.params.particle_z_blur_factor), 0, 2);
         _ = c.ImGui_SliderInt("particles type count", @ptrCast(&state.particle_type_count), 1, cast(i32, state.max_particle_type_count));
         _ = c.ImGui_SliderInt("grid size", @ptrCast(&state.params.grid_size), 1, 100);
+        _ = c.ImGui_SliderFloat("world_spawn_size", @ptrCast(&state.params.world_spawn_size), 0.0001, 5000.0);
         _ = c.ImGui_SliderFloat("attractor_inertia", @ptrCast(&state.params.attractor_inertia), 0.0, 5.0);
         _ = c.ImGui_SliderFloat("friction", @ptrCast(&state.friction), 0.0, 10.0);
         _ = c.ImGui_SliderFloat("entropy", @ptrCast(&state.params.entropy), 0.0, 1.0);
         _ = c.ImGui_SliderFloat("attraction_strength_scale", @ptrCast(&state.params.attraction_strength_scale), 0, 200);
+        _ = c.ImGui_SliderFloat("attraction_radius", @ptrCast(&state.params.attraction_radius), 1, 200);
 
         var sim_speed = state.ticker.speed.perc;
         if (c.ImGui_SliderFloat("simulation_speed", @ptrCast(&sim_speed), 0.0, 20.0)) {

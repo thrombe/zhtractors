@@ -34,6 +34,8 @@
      float friction;
      float entropy;
      float attraction_strength_scale;
+     float attraction_radius;
+     float world_spawn_size;
      uint randomize_particle_types;
      uint randomize_particle_attrs;
      uint particle_type_count;

@@ -256,7 +256,7 @@ vec3 attractor(vec3 pos) {
 
         int index = atomicAdd(state.particle_count, 1);
         Particle p;
-        p.pos = vec3(random(), random(), random()) * 1200;
+        p.pos = (vec3(random(), random(), random()) - 0.5) * 2.0 * ubo.params.world_spawn_size;
         p.vel = 50.0 * (vec3(random(), random(), random()) - 0.5) * 2.0;
         p.type_index = clamp(int(random() * ubo.params.particle_type_count), 0, ubo.params.particle_type_count - 1);
         particles[index] = p;
@@ -305,8 +305,8 @@ vec3 attractor(vec3 pos) {
             }
             if (ubo.params.randomize_particle_attrs != 0 || killed == 1) {
                 p.scale = random();
-                p.pos = (vec3(random(), random(), random()) - 0.5) * vec3(1000.0);
-                p.vel = (vec3(random(), random(), random()) - 0.5) * 2000;
+                p.pos = (vec3(random(), random(), random()) - 0.5) * 2.0 * ubo.params.world_spawn_size;
+                p.vel = (vec3(random(), random(), random()) - 0.5) * 2.0 * ubo.params.world_spawn_size;
             }
         }
 
@@ -322,7 +322,7 @@ vec3 attractor(vec3 pos) {
             diff = length(rej);
         }
 
-        diff /= 40.0;
+        diff /= ubo.params.attraction_radius;
         vec3 sign = vec3(1.0);
         vec3 offset = vec3(random(), random(), random());
         if (diff < 0.01 * random()) {
