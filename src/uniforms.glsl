@@ -25,6 +25,7 @@
  struct Params {
      mat4 world_to_screen;
      float delta;
+     uint attractor;
      float scale;
      uint steps_per_frame;
      float particle_visual_size;
@@ -89,4 +90,13 @@
  const int _bind_scratch = 2;
  const int _bind_particle_types = 3;
  const int _bind_particles = 4;
+
+ const int _attractor_thomas = 0;
+ const int _attractor_chen_lee = 1;
+ const int _attractor_simone = 2;
+ const int _attractor_aizawa = 3;
+ const int _attractor_dadras = 4;
+ const int _attractor_dequan_li = 5;
+ const int _attractor_arneodo = 6;
+ const int _attractor_three_scroll = 7;
 

@@ -437,6 +437,7 @@ pub const ResourceManager = struct {
         const Params = struct {
             world_to_screen: math.Mat4x4,
             delta: f32 = 0,
+            attractor: u32,
             scale: f32 = 1,
             steps_per_frame: u32 = 1,
             particle_visual_size: f32 = 16,
@@ -464,6 +465,7 @@ pub const ResourceManager = struct {
         ) !@This() {
             // const inputs = window.input();
 
+            state.params.attractor = @intFromEnum(state.attractor);
             const dirs = state.camera.dirs(state.controller.pitch, state.controller.yaw);
             state.params.world_to_screen = state.camera.world_to_screen_mat(.{
                 .width = window.extent.width,
@@ -567,6 +569,7 @@ pub const RendererState = struct {
         try gen.add_struct("PushConstants", ResourceManager.PushConstants);
         try gen.add_struct("Uniforms", ResourceManager.Uniforms);
         try gen.add_enum("_bind", ResourceManager.UniformBinds);
+        try gen.add_enum("_attractor", AppState.Attractor);
         try gen.dump_shader("src/uniforms.glsl");
 
         var shader_stages = std.ArrayList(utils_mod.ShaderCompiler.ShaderInfo).init(alloc);
@@ -893,10 +896,12 @@ pub const AppState = struct {
     particle_type_count: u32 = 5,
     spawn_count: u32 = 15000,
     friction: f32 = 2.86,
+    attractor: Attractor = .thomas,
     params: ResourceManager.Uniforms.Params = .{
         .world_to_screen = std.mem.zeroes(math.Mat4x4),
         .spawn_count = 0,
         .friction = 0,
+        .attractor = @intFromEnum(Attractor.thomas),
     },
     camera: math.Camera = .init(
         math.Camera.constants.basis.vulkan,
@@ -911,6 +916,17 @@ pub const AppState = struct {
     } = .{},
 
     arena: std.heap.ArenaAllocator,
+
+    const Attractor = enum(u32) {
+        thomas,
+        chen_lee,
+        simone,
+        aizawa,
+        dadras,
+        dequan_li,
+        arneodo,
+        three_scroll,
+    };
 
     // fn interpolated(self: *const @This(), lt: *const C.LastTransform, t: *const C.GlobalTransform) C.Transform {
     //     return lt.transform.lerp(&t.transform, self.ticker.simulation.interpolation_factor);
@@ -1180,6 +1196,8 @@ pub const GuiState = struct {
         }
 
         _ = c.ImGui_SliderInt("step per frame", @ptrCast(&state.steps_per_frame), 1, 20);
+
+        gui.enum_dropdown(&state.attractor, "Attractor");
 
         reset = c.ImGui_Button("Reset render state") or reset;
 

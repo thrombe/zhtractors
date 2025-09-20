@@ -217,7 +217,7 @@ vec3 three_scroll_attractor(vec3 pos) {
 // https://blog.shashanktomar.com/posts/strange-attractors
 vec3 attractor(vec3 pos) {
     // return thomas_attractor(pos);
-    return aizawa_attractor(pos);
+    // return aizawa_attractor(pos);
     // return chen_lee_attractor(pos);
     // return simone_attractor(pos);
     // return arneodo_attractor(pos);
@@ -231,6 +231,19 @@ vec3 attractor(vec3 pos) {
     // a1 *= 0.01;
     // a2 *= 0.01;
     // return max(abs(a1), abs(a2)) * sign(a1);
+
+    switch (ubo.params.attractor) {
+        case _attractor_thomas: return thomas_attractor(pos);
+        case _attractor_chen_lee: return chen_lee_attractor(pos);
+        case _attractor_simone: return simone_attractor(pos);
+        case _attractor_aizawa: return aizawa_attractor(pos);
+        case _attractor_dadras: return dadras_attractor(pos);
+        case _attractor_dequan_li: return dequan_li_attractor(pos);
+        case _attractor_arneodo: return arneodo_attractor(pos);
+        case _attractor_three_scroll: return three_scroll_attractor(pos);
+        default:
+            return pos;
+    }
 }
 
 #ifdef SPAWN_PARTICLES_PASS
